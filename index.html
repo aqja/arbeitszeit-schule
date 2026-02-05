@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbeitszeit-Rechner für Schulen in Hessen</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Arbeitszeit-Rechner für Schulen in Hessen</h1>
+            <p class="subtitle">Berechnung der monatlichen und jährlichen Arbeitszeit für Lehrkräfte</p>
+        </header>
+
+        <main>
+            <!-- Eingabebereich -->
+            <section class="input-section">
+                <h2>Eingaben</h2>
+
+                <div class="form-group">
+                    <label for="schoolYear">Schuljahr:</label>
+                    <select id="schoolYear" name="schoolYear">
+                        <option value="2024-2025">2024/2025</option>
+                        <option value="2025-2026" selected>2025/2026</option>
+                        <option value="2026-2027">2026/2027</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="workPercentage">Arbeitszeitmodell (%):</label>
+                    <input type="number" id="workPercentage" name="workPercentage"
+                           min="1" max="100" value="100" step="0.5">
+                    <span class="help-text">100% = 39 Stunden/Woche</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="flexDaysCount">Anzahl flexible Ferientage:</label>
+                    <input type="number" id="flexDaysCount" name="flexDaysCount"
+                           min="0" max="10" value="0" step="1">
+                </div>
+
+                <div id="flexDatesContainer" class="flex-dates-container">
+                    <!-- Wird dynamisch gefüllt -->
+                </div>
+
+                <button id="calculateBtn" class="btn-primary">Berechnen</button>
+            </section>
+
+            <!-- Ladeanzeige -->
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                <p>Daten werden geladen...</p>
+            </div>
+
+            <!-- Ergebnisbereich -->
+            <section id="resultsSection" class="results-section" style="display: none;">
+                <h2>Ergebnisse</h2>
+
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h3>Zeitraum</h3>
+                        <p id="periodDisplay">-</p>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>Arbeitszeitmodell</h3>
+                        <p id="workModelDisplay">-</p>
+                    </div>
+
+                    <div class="result-card highlight">
+                        <h3>Werktage gesamt</h3>
+                        <p id="totalWorkdays" class="big-number">-</p>
+                    </div>
+
+                    <div class="result-card highlight-green">
+                        <h3>Schultage</h3>
+                        <p id="schoolDays" class="big-number">-</p>
+                    </div>
+
+                    <div class="result-card highlight-blue">
+                        <h3>Schulfreie Tage</h3>
+                        <p id="nonSchoolDays" class="big-number">-</p>
+                        <small id="nonSchoolDaysBreakdown" class="breakdown">-</small>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>Gesetzlicher Urlaub</h3>
+                        <p class="big-number">30 Tage</p>
+                    </div>
+
+                    <div class="result-card highlight-orange">
+                        <h3>Verbleibende freie Tage</h3>
+                        <p id="remainingDays" class="big-number">-</p>
+                        <small class="help-text">Für Überstundenabbau</small>
+                    </div>
+
+                    <div class="result-card highlight-red">
+                        <h3>Tägliche Mehrarbeit</h3>
+                        <p id="dailyExtra" class="big-number">-</p>
+                        <small class="help-text">Während der Schultage</small>
+                    </div>
+
+                    <div class="result-card highlight-red">
+                        <h3>Wochenarbeitszeit (Schulzeit)</h3>
+                        <p id="weeklyHours" class="big-number">-</p>
+                    </div>
+
+                    <div class="result-card highlight">
+                        <h3>Jahresarbeitsstunden</h3>
+                        <p id="yearlyHours" class="big-number">-</p>
+                    </div>
+                </div>
+
+                <!-- Detaillierte Tagesübersicht -->
+                <div class="details-section">
+                    <h3>Detaillierte Übersicht</h3>
+                    <div class="legend">
+                        <span class="legend-item"><span class="color-box school-day"></span> Schultag</span>
+                        <span class="legend-item"><span class="color-box vacation-day"></span> Schulferien</span>
+                        <span class="legend-item"><span class="color-box holiday-day"></span> Feiertag (außerhalb Ferien)</span>
+                        <span class="legend-item"><span class="color-box flex-day"></span> Flexibler Ferientag (außerhalb Ferien)</span>
+                        <span class="legend-item"><span class="color-box holiday-in-vacation"></span> Feiertag in Ferien</span>
+                        <span class="legend-item"><span class="color-box flex-in-vacation"></span> Flexibler Tag in Ferien</span>
+                    </div>
+                    <div id="calendarView" class="calendar-view">
+                        <!-- Wird dynamisch gefüllt -->
+                    </div>
+                </div>
+
+                <!-- Monatliche Übersicht -->
+                <div class="monthly-section">
+                    <h3>Monatliche Übersicht</h3>
+                    <table id="monthlyTable" class="monthly-table">
+                        <thead>
+                            <tr>
+                                <th>Monat</th>
+                                <th>Werktage</th>
+                                <th>Schultage</th>
+                                <th>Schulfreie Tage</th>
+                                <th>Sollstunden</th>
+                                <th>Tatsächliche Stunden</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTableBody">
+                            <!-- Wird dynamisch gefüllt -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Arbeitszeit-Rechner | Datenquellen:
+                <a href="https://feiertage-api.de" target="_blank">Feiertage-API.de</a> |
+                <a href="https://schulferien-api.de" target="_blank">Schulferien-API.de</a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="calculator.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
