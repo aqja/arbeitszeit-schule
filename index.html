@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arbeitszeit-Rechner für Schulen in Hessen</title>
+    <title>Arbeitszeitrechner für Schulen in Hessen</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Arbeitszeit-Rechner für Schulen in Hessen</h1>
+            <h1>Arbeitszeitrechner für Schulen in Hessen</h1>
             <p class="subtitle">Berechnung der täglichen, monatlichen und jährlichen Arbeitszeit für Mitarbeitende</p>
         </header>
 
         <main>
-            <!-- Eingabebereich -->
+            <!-- Abschnitt 1: Schuljahr & Ferientage -->
             <section class="input-section">
-                <h2>Eingaben</h2>
+                <h2>Schuljahr & Ferientage</h2>
 
                 <div class="form-group">
                     <label for="schoolYear">Schuljahr:</label>
@@ -24,13 +24,6 @@
                         <option value="2025-2026" selected>2025/2026</option>
                         <option value="2026-2027">2026/2027</option>
                     </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="workPercentage">Arbeitszeitmodell (%):</label>
-                    <input type="number" id="workPercentage" name="workPercentage"
-                           min="1" max="100" value="100" step="0.5">
-                    <span class="help-text">100% = 39 Stunden/Woche</span>
                 </div>
 
                 <div class="form-group">
@@ -43,145 +36,330 @@
                     <!-- Wird dynamisch gefüllt -->
                 </div>
 
-                <button id="calculateBtn" class="btn-primary">Berechnen</button>
-            </section>
+                <button id="loadDataBtn" class="btn-primary">Daten laden</button>
 
-            <!-- Ladeanzeige -->
-            <div id="loadingIndicator" class="loading" style="display: none;">
-                <p>Daten werden geladen...</p>
-            </div>
+                <!-- Ladeanzeige -->
+                <div id="loadingIndicator" class="loading" style="display: none;">
+                    <p>Daten werden geladen...</p>
+                </div>
 
-            <!-- Ergebnisbereich -->
-            <section id="resultsSection" class="results-section" style="display: none;">
-                <h2>Ergebnisse</h2>
+                <!-- Basisdaten (100% Vollzeit) - erscheint nach Button-Click -->
+                <div id="baseResults" class="results-base" style="display: none;">
+                    <div class="section-header">
+                        <h3>📊 Basisdaten (100% Vollzeit)</h3>
+                        <p class="section-description">
+                            Diese Werte gelten bei 39 Stunden/Woche (100% Vollzeit)
+                        </p>
+                    </div>
 
-                <div class="results-flow">
-                    <!-- Stage 1: Context -->
+                    <!-- Context Stage -->
                     <div class="calculation-stage">
-                        <h3>📋 Berechnungsgrundlage</h3>
+                        <h4>📋 Berechnungsgrundlage</h4>
                         <div class="flow-container">
                             <div class="result-card compact">
-                                <h4>Zeitraum</h4>
+                                <h5>Zeitraum</h5>
                                 <p id="periodDisplay" class="value">-</p>
-                            </div>
-                            <div class="result-card compact">
-                                <h4>Arbeitszeitmodell</h4>
-                                <p id="workModelDisplay" class="value">-</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Stage 2: Day Breakdown -->
+                    <!-- Tagesverteilung Stage -->
                     <div class="calculation-stage">
-                        <h3>📅 Tagesverteilung</h3>
+                        <h4>📅 Tagesverteilung</h4>
                         <div class="flow-container">
                             <div class="result-card compact">
-                                <h4>Wochentage</h4>
+                                <h5>Wochentage</h5>
                                 <p id="totalWeekdays" class="value">-</p>
                                 <span class="sublabel">Mo-Fr gesamt</span>
                             </div>
                             <div class="flow-connector minus"></div>
                             <div class="result-card compact">
-                                <h4>Feiertage</h4>
+                                <h5>Feiertage</h5>
                                 <p id="totalHolidays" class="value">-</p>
                             </div>
                             <div class="flow-connector equals"></div>
                             <div class="result-card compact highlight">
-                                <h4>Arbeitstage</h4>
+                                <h5>Arbeitstage</h5>
                                 <p id="totalWorkdays" class="value">-</p>
                             </div>
                             <div class="flow-connector arrow"></div>
                             <div class="result-card compact highlight-green">
-                                <h4>Schultage</h4>
+                                <h5>Schultage</h5>
                                 <p id="schoolDays" class="value">-</p>
                             </div>
                             <div class="flow-connector plus"></div>
                             <div class="result-card compact highlight-blue">
-                                <h4>Schulfreie Tage</h4>
+                                <h5>Schulfreie Tage</h5>
                                 <p id="nonSchoolDays" class="value">-</p>
                                 <span id="nonSchoolDaysBreakdown" class="sublabel">-</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Stage 3: Hour Calculation -->
+                    <!-- Jahres-/Wochenarbeitszeit bei 100% -->
                     <div class="calculation-stage">
-                        <h3>⏱️ Stundenberechnung</h3>
+                        <h4>⏱️ Arbeitszeit bei 100%</h4>
+                        <div class="flow-container">
+                            <div class="result-card emphasis highlight">
+                                <h5>Wochenarbeitszeit</h5>
+                                <p id="baseWeeklyHours" class="value">39h</p>
+                                <span class="sublabel">bei 100% Vollzeit</span>
+                            </div>
+                            <div class="result-card emphasis highlight-blue">
+                                <h5>Jahresarbeitsstunden</h5>
+                                <p id="baseYearlyHours" class="value">-</p>
+                                <span class="sublabel">bei 100% Vollzeit</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detaillierte Tagesübersicht -->
+                    <div class="details-section">
+                        <h3>Detaillierte Übersicht</h3>
+                        <div class="legend">
+                            <span class="legend-item"><span class="color-box school-day"></span> Schultag</span>
+                            <span class="legend-item"><span class="color-box vacation-day"></span> Schulferien</span>
+                            <span class="legend-item"><span class="color-box holiday-day"></span> Feiertag (außerhalb Ferien)</span>
+                            <span class="legend-item"><span class="color-box flex-day"></span> Flexibler Ferientag (außerhalb Ferien)</span>
+                            <span class="legend-item"><span class="color-box holiday-in-vacation"></span> Feiertag in Ferien</span>
+                        </div>
+                        <div id="calendarView" class="calendar-view">
+                            <!-- Wird dynamisch gefüllt -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Abschnitt 2: Arbeitszeit -->
+            <section class="arbeitszeit-section">
+                <h2>Arbeitszeit</h2>
+
+                <!-- Arbeitszeitplaner (Optional, weniger prominent) -->
+                <div class="planner-subsection">
+                    <h3>
+                        <button id="togglePlanner" class="btn-toggle-small" type="button">▼</button>
+                        Arbeitszeitplaner (Optional)
+                    </h3>
+
+                    <div id="plannerContent" class="planner-content" style="display: none;">
+                        <p class="help-text">
+                            Geben Sie Ihre tatsächlichen Arbeitszeiten ein, um Ihre wöchentliche
+                            Arbeitszeit und Ihr Teilzeitmodell zu berechnen.
+                        </p>
+
+                        <div class="weekday-inputs">
+                        <!-- Montag -->
+                        <div class="weekday-row">
+                            <span class="weekday-label">Montag</span>
+                            <div class="time-inputs">
+                                <div class="time-input-group">
+                                    <label for="monStart">Von</label>
+                                    <input type="time" id="monStart" name="monStart">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="monEnd">Bis</label>
+                                    <input type="time" id="monEnd" name="monEnd">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="monBreak">Pause (Min.)</label>
+                                    <input type="number" id="monBreak" name="monBreak"
+                                           min="0" max="120" value="30" step="15">
+                                </div>
+                                <div class="daily-hours">
+                                    <span id="monHours" class="hours-display">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dienstag -->
+                        <div class="weekday-row">
+                            <span class="weekday-label">Dienstag</span>
+                            <div class="time-inputs">
+                                <div class="time-input-group">
+                                    <label for="tueStart">Von</label>
+                                    <input type="time" id="tueStart" name="tueStart">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="tueEnd">Bis</label>
+                                    <input type="time" id="tueEnd" name="tueEnd">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="tueBreak">Pause (Min.)</label>
+                                    <input type="number" id="tueBreak" name="tueBreak"
+                                           min="0" max="120" value="30" step="15">
+                                </div>
+                                <div class="daily-hours">
+                                    <span id="tueHours" class="hours-display">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mittwoch -->
+                        <div class="weekday-row">
+                            <span class="weekday-label">Mittwoch</span>
+                            <div class="time-inputs">
+                                <div class="time-input-group">
+                                    <label for="wedStart">Von</label>
+                                    <input type="time" id="wedStart" name="wedStart">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="wedEnd">Bis</label>
+                                    <input type="time" id="wedEnd" name="wedEnd">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="wedBreak">Pause (Min.)</label>
+                                    <input type="number" id="wedBreak" name="wedBreak"
+                                           min="0" max="120" value="30" step="15">
+                                </div>
+                                <div class="daily-hours">
+                                    <span id="wedHours" class="hours-display">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Donnerstag -->
+                        <div class="weekday-row">
+                            <span class="weekday-label">Donnerstag</span>
+                            <div class="time-inputs">
+                                <div class="time-input-group">
+                                    <label for="thuStart">Von</label>
+                                    <input type="time" id="thuStart" name="thuStart">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="thuEnd">Bis</label>
+                                    <input type="time" id="thuEnd" name="thuEnd">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="thuBreak">Pause (Min.)</label>
+                                    <input type="number" id="thuBreak" name="thuBreak"
+                                           min="0" max="120" value="30" step="15">
+                                </div>
+                                <div class="daily-hours">
+                                    <span id="thuHours" class="hours-display">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Freitag -->
+                        <div class="weekday-row">
+                            <span class="weekday-label">Freitag</span>
+                            <div class="time-inputs">
+                                <div class="time-input-group">
+                                    <label for="friStart">Von</label>
+                                    <input type="time" id="friStart" name="friStart">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="friEnd">Bis</label>
+                                    <input type="time" id="friEnd" name="friEnd">
+                                </div>
+                                <div class="time-input-group">
+                                    <label for="friBreak">Pause (Min.)</label>
+                                    <input type="number" id="friBreak" name="friBreak"
+                                           min="0" max="120" value="30" step="15">
+                                </div>
+                                <div class="daily-hours">
+                                    <span id="friHours" class="hours-display">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                        <div class="planner-results">
+                            <div class="result-card highlight">
+                                <h4>Wöchentliche Arbeitszeit</h4>
+                                <p id="plannerWeeklyHours" class="value">0h</p>
+                            </div>
+                            <div class="result-card highlight-blue">
+                                <h4>Teilzeitmodell</h4>
+                                <p id="plannerPercentage" class="value">0%</p>
+                                <span class="sublabel">39h = 100%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Teilzeitmodell (manuell) -->
+                <div class="form-group">
+                    <label for="workPercentage">Oder manuell eingeben:</label>
+                    <input type="number" id="workPercentage" name="workPercentage"
+                           min="1" max="100" value="100" step="0.5">
+                    <span class="help-text">Arbeitszeitmodell in % (100% = 39 Stunden/Woche)</span>
+                </div>
+
+                <button id="calculateParttimeBtn" class="btn-primary">Berechnen</button>
+
+                <!-- Teilzeit-Ergebnisse -->
+                <div id="parttimeResults" class="results-parttime" style="display: none;">
+                    <div class="section-header">
+                        <h3>🎯 Ihre Arbeitszeit (<span id="displayPercentage">-</span>% Teilzeit)</h3>
+                        <p class="section-description">
+                            Angepasste Werte basierend auf Ihrem Teilzeitmodell
+                        </p>
+                    </div>
+
+                    <!-- Stunden-Berechnung Stage -->
+                    <div class="calculation-stage">
+                        <h4>⏱️ Stundenberechnung</h4>
                         <div class="flow-container">
                             <div class="result-card compact highlight-blue">
-                                <h4>Schulfreie Tage</h4>
+                                <h5>Schulfreie Tage</h5>
                                 <p id="nonSchoolDays2" class="value">-</p>
                             </div>
                             <div class="flow-connector minus"></div>
                             <div class="result-card compact">
-                                <h4>Urlaubstage</h4>
+                                <h5>Urlaubstage</h5>
                                 <p class="value">30</p>
                             </div>
                             <div class="flow-connector equals"></div>
                             <div class="result-card compact highlight-orange">
-                                <h4>Verbleibende Ferientage</h4>
+                                <h5>Verbleibende Ferientage</h5>
                                 <p id="remainingDays" class="value">-</p>
                                 <span class="sublabel">Überstundenabbau notwendig</span>
                             </div>
                             <div class="flow-connector arrow"></div>
                             <div class="result-card compact highlight-red">
-                                <h4>Täglich notwendiger Überstundenaufbau</h4>
+                                <h5>Täglich notwendiger Überstundenaufbau</h5>
                                 <p id="dailyExtra" class="value">-</p>
                                 <span class="sublabel">mittlere Mehrarbeit während Schultagen</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Stage 4: Final Results -->
+                    <!-- Endergebnis Stage -->
                     <div class="calculation-stage">
-                        <h3>✅ Endergebnis</h3>
+                        <h4>✅ Ihre Endergebnisse</h4>
                         <div class="flow-container">
                             <div class="result-card emphasis highlight-red">
-                                <h4>Wochenarbeitszeit</h4>
+                                <h5>Ihre Wochenarbeitszeit</h5>
                                 <p id="weeklyHours" class="value">-</p>
                                 <span class="sublabel">während der Schulzeit</span>
                             </div>
                             <div class="result-card emphasis highlight">
-                                <h4>Jahresarbeitsstunden</h4>
+                                <h5>Ihre Jahresarbeitsstunden</h5>
                                 <p id="yearlyHours" class="value">-</p>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Detaillierte Tagesübersicht -->
-                <div class="details-section">
-                    <h3>Detaillierte Übersicht</h3>
-                    <div class="legend">
-                        <span class="legend-item"><span class="color-box school-day"></span> Schultag</span>
-                        <span class="legend-item"><span class="color-box vacation-day"></span> Schulferien</span>
-                        <span class="legend-item"><span class="color-box holiday-day"></span> Feiertag (außerhalb Ferien)</span>
-                        <span class="legend-item"><span class="color-box flex-day"></span> Flexibler Ferientag (außerhalb Ferien)</span>
-                        <span class="legend-item"><span class="color-box holiday-in-vacation"></span> Feiertag in Ferien</span>
+                    <!-- Monatliche Übersicht -->
+                    <div class="monthly-section">
+                        <h3>Monatliche Übersicht</h3>
+                        <table id="monthlyTable" class="monthly-table">
+                            <thead>
+                                <tr>
+                                    <th>Monat</th>
+                                    <th>Werktage</th>
+                                    <th>davon Schultage</th>
+                                    <th>= Schulfrei (inkl. 30d Urlaub)</th>
+                                    <th>theoretische Sollstunden</th>
+                                    <th>Sollstunden mit Einarbeit Ferienausgleich, abzüglich Urlaubstage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthlyTableBody">
+                                <!-- Wird dynamisch gefüllt -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div id="calendarView" class="calendar-view">
-                        <!-- Wird dynamisch gefüllt -->
-                    </div>
-                </div>
-
-                <!-- Monatliche Übersicht -->
-                <div class="monthly-section">
-                    <h3>Monatliche Übersicht</h3>
-                    <table id="monthlyTable" class="monthly-table">
-                        <thead>
-                            <tr>
-                                <th>Monat</th>
-                                <th>Werktage</th>
-                                <th>davon Schultage</th>
-                                <th>= Schulfrei (inkl. 30d Urlaub)</th>
-                                <th>theoretische Sollstunden</th>
-                                <th>Sollstunden mit Einarbeit Ferienausgleich, abzüglich Urlaubstage</th>
-                            </tr>
-                        </thead>
-                        <tbody id="monthlyTableBody">
-                            <!-- Wird dynamisch gefüllt -->
-                        </tbody>
-                    </table>
                 </div>
             </section>
         </main>

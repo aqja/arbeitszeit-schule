@@ -23,6 +23,12 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Stunden in Millisekunden
 const DEBUG_SCRIPT = true;
 
 /**
+ * Globale Variablen für gecachte API-Daten
+ */
+let cachedApiData = null;
+let currentSchoolYear = null;
+
+/**
  * Strukturiertes Logging-System
  */
 const logScript = {
@@ -40,27 +46,61 @@ let elements = {};
 
 function initializeElements() {
     elements = {
+        // Planner elements
+        plannerToggle: document.getElementById('togglePlanner'),
+        plannerContent: document.getElementById('plannerContent'),
+        plannerWeeklyHours: document.getElementById('plannerWeeklyHours'),
+        plannerPercentage: document.getElementById('plannerPercentage'),
+
+        // Planner inputs for each day
+        monStart: document.getElementById('monStart'),
+        monEnd: document.getElementById('monEnd'),
+        monBreak: document.getElementById('monBreak'),
+        monHours: document.getElementById('monHours'),
+        tueStart: document.getElementById('tueStart'),
+        tueEnd: document.getElementById('tueEnd'),
+        tueBreak: document.getElementById('tueBreak'),
+        tueHours: document.getElementById('tueHours'),
+        wedStart: document.getElementById('wedStart'),
+        wedEnd: document.getElementById('wedEnd'),
+        wedBreak: document.getElementById('wedBreak'),
+        wedHours: document.getElementById('wedHours'),
+        thuStart: document.getElementById('thuStart'),
+        thuEnd: document.getElementById('thuEnd'),
+        thuBreak: document.getElementById('thuBreak'),
+        thuHours: document.getElementById('thuHours'),
+        friStart: document.getElementById('friStart'),
+        friEnd: document.getElementById('friEnd'),
+        friBreak: document.getElementById('friBreak'),
+        friHours: document.getElementById('friHours'),
+
         // Eingabefelder
         schoolYear: document.getElementById('schoolYear'),
         workPercentage: document.getElementById('workPercentage'),
         flexDaysCount: document.getElementById('flexDaysCount'),
         flexDatesContainer: document.getElementById('flexDatesContainer'),
-        calculateBtn: document.getElementById('calculateBtn'),
+        loadDataBtn: document.getElementById('loadDataBtn'),
+        calculateParttimeBtn: document.getElementById('calculateParttimeBtn'),
 
         // Anzeige-Elemente
         loadingIndicator: document.getElementById('loadingIndicator'),
-        resultsSection: document.getElementById('resultsSection'),
+        baseResults: document.getElementById('baseResults'),
 
-        // Ergebnisfelder
+        // Ergebnisfelder - Basis (100%)
         periodDisplay: document.getElementById('periodDisplay'),
-        workModelDisplay: document.getElementById('workModelDisplay'),
         totalWeekdays: document.getElementById('totalWeekdays'),
         totalHolidays: document.getElementById('totalHolidays'),
         totalWorkdays: document.getElementById('totalWorkdays'),
         schoolDays: document.getElementById('schoolDays'),
         nonSchoolDays: document.getElementById('nonSchoolDays'),
-        nonSchoolDays2: document.getElementById('nonSchoolDays2'),
         nonSchoolDaysBreakdown: document.getElementById('nonSchoolDaysBreakdown'),
+        baseWeeklyHours: document.getElementById('baseWeeklyHours'),
+        baseYearlyHours: document.getElementById('baseYearlyHours'),
+
+        // Ergebnisfelder - Teilzeit
+        parttimeResults: document.getElementById('parttimeResults'),
+        displayPercentage: document.getElementById('displayPercentage'),
+        nonSchoolDays2: document.getElementById('nonSchoolDays2'),
         remainingDays: document.getElementById('remainingDays'),
         dailyExtra: document.getElementById('dailyExtra'),
         weeklyHours: document.getElementById('weeklyHours'),
@@ -86,16 +126,36 @@ document.addEventListener('DOMContentLoaded', () => {
  * Richtet alle Event-Listener ein
  */
 function setupEventListeners() {
-    // Berechnen-Button
-    elements.calculateBtn.addEventListener('click', handleCalculate);
+    // Planner toggle
+    elements.plannerToggle.addEventListener('click', togglePlanner);
 
-    // Flexible Ferientage - Anzahl geändert
+    // Planner inputs - calculate on change
+    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri'];
+    weekdays.forEach(day => {
+        elements[`${day}Start`].addEventListener('change', updatePlannerCalculations);
+        elements[`${day}End`].addEventListener('change', updatePlannerCalculations);
+        elements[`${day}Break`].addEventListener('input', updatePlannerCalculations);
+    });
+
+    // Button-triggered data loading
+    elements.loadDataBtn.addEventListener('click', handleLoadData);
+
+    // Flex days count change - update inputs only
     elements.flexDaysCount.addEventListener('change', updateFlexDatesInputs);
 
-    // Enter-Taste zum Berechnen
+    // Button-triggered parttime calculation
+    elements.calculateParttimeBtn.addEventListener('click', handleCalculateParttime);
+
+    // Enter-Taste zum Laden/Berechnen
     document.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            handleCalculate();
+            // Wenn Basisdaten noch nicht geladen, dann laden
+            if (elements.baseResults.style.display === 'none') {
+                handleLoadData();
+            } else {
+                // Sonst Teilzeit berechnen
+                handleCalculateParttime();
+            }
         }
     });
 }
@@ -296,78 +356,8 @@ async function fetchAllData(schoolYear) {
 }
 
 // ========================================
-// Berechnungs- und Anzeigelogik
+// Anzeigelogik
 // ========================================
-
-/**
- * Hauptfunktion: Berechnung durchführen
- */
-async function handleCalculate() {
-    try {
-        // Eingabewerte sammeln
-        const schoolYear = elements.schoolYear.value;
-        const workPercentage = parseFloat(elements.workPercentage.value);
-        const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
-
-        // Validierung
-        if (workPercentage < 1 || workPercentage > 100) {
-            alert('Bitte geben Sie einen Wert zwischen 1 und 100 für das Arbeitszeitmodell ein.');
-            return;
-        }
-
-        // Flexible Ferientage sammeln
-        const flexDates = [];
-        for (let i = 1; i <= flexDaysCount; i++) {
-            const input = document.getElementById(`flexDate${i}`);
-            if (input && input.value) {
-                flexDates.push(input.value);
-            }
-        }
-
-        // UI aktualisieren
-        showLoading(true);
-
-        // Daten von APIs laden
-        const apiData = await fetchAllData(schoolYear);
-
-        // Debug: API-Daten anzeigen
-        logScript.debug('=== API-DATEN DEBUG ===');
-        logScript.debug('Verarbeitete Feiertage:', apiData.holidays);
-        logScript.debug('Rohe Ferien-Daten:', apiData.vacations);
-
-        // Feiertage sind bereits verarbeitet (passiert in fetchAllData)
-        const holidays = apiData.holidays;
-        const vacations = processVacations(apiData.vacations);
-
-        // Debug: Verarbeitete Daten
-        logScript.debug('Verarbeitete Feiertage:', holidays);
-        logScript.debug('Verarbeitete Ferien:', vacations);
-
-        // Berechnung durchführen
-        const results = calculateWorkingTime({
-            schoolYear,
-            workPercentage,
-            vacations,
-            holidays,
-            flexDates
-        });
-
-        // Ergebnisse anzeigen
-        displayResults(results);
-
-        // UI aktualisieren
-        showLoading(false);
-        elements.resultsSection.style.display = 'block';
-
-        // Sanft zu den Ergebnissen scrollen
-        elements.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-    } catch (error) {
-        logScript.error('Calculation error:', error);
-        alert(`Fehler bei der Berechnung: ${error.message}`);
-        showLoading(false);
-    }
-}
 
 /**
  * Zeigt/versteckt die Ladeanzeige
@@ -375,43 +365,6 @@ async function handleCalculate() {
  */
 function showLoading(show) {
     elements.loadingIndicator.style.display = show ? 'block' : 'none';
-    elements.calculateBtn.disabled = show;
-}
-
-/**
- * Zeigt die Berechnungsergebnisse an
- * @param {Object} results - Berechnungsergebnisse
- */
-function displayResults(results) {
-    // Context stage
-    elements.periodDisplay.textContent = `${results.period.start} - ${results.period.end}`;
-    elements.workModelDisplay.textContent =
-        `${results.workModel.percentage}% (${results.workModel.weeklyTargetHours}h/Woche)`;
-
-    // Day breakdown stage
-    // Calculate total weekdays (before removing holidays)
-    const totalWeekdays = results.days.totalWorkdays + results.days.holidayCount;
-    elements.totalWeekdays.textContent = totalWeekdays;
-
-    elements.totalHolidays.textContent = results.days.holidayCount;
-    elements.totalWorkdays.textContent = results.days.totalWorkdays;
-    elements.schoolDays.textContent = results.days.schoolDays;
-    elements.nonSchoolDays.textContent = results.days.totalNonSchoolDays;
-    elements.nonSchoolDaysBreakdown.textContent =
-        `Ferien: ${results.days.vacationDays} | Flexible Tage: ${results.days.flexDaysOnly}`;
-
-    // Hour calculation stage (duplicate nonSchoolDays for visual flow)
-    elements.nonSchoolDays2.textContent = results.days.totalNonSchoolDays;
-    elements.remainingDays.textContent = results.days.remainingFreeDays;
-    elements.dailyExtra.textContent = `${results.hours.dailyExtra}h`;
-
-    // Final results stage
-    elements.weeklyHours.textContent = `${results.workModel.weeklyHoursDuringSchool}h`;
-    elements.yearlyHours.textContent = `${results.hours.yearlyTarget}h`;
-
-    // Detail views (unchanged)
-    displayCalendar(results.details.dayClassification);
-    displayMonthlyTable(results.details.monthlyBreakdown, results.workModel);
 }
 
 /**
@@ -535,6 +488,246 @@ function displayMonthlyTable(monthlyBreakdown, workModel) {
 
 // Alle Hilfsfunktionen für Datums- und String-Formatierung
 // befinden sich jetzt in utils.js
+
+// ========================================
+// Arbeitszeitplaner Funktionen
+// ========================================
+
+/**
+ * Toggles the visibility of the planner section
+ */
+function togglePlanner() {
+    const content = elements.plannerContent;
+    const button = elements.plannerToggle;
+
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        button.textContent = '▲ Verbergen';
+    } else {
+        content.style.display = 'none';
+        button.textContent = '▼ Anzeigen';
+    }
+}
+
+/**
+ * Calculates working hours for a single day
+ * @param {string} startTime - Start time (HH:MM)
+ * @param {string} endTime - End time (HH:MM)
+ * @param {number} breakMinutes - Break duration in minutes
+ * @returns {number} - Working hours for the day
+ */
+function calculateDailyHours(startTime, endTime, breakMinutes) {
+    if (!startTime || !endTime) {
+        return 0;
+    }
+
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+
+    const startTotalMinutes = startHour * 60 + startMin;
+    const endTotalMinutes = endHour * 60 + endMin;
+
+    const workMinutes = endTotalMinutes - startTotalMinutes - (breakMinutes || 0);
+
+    if (workMinutes < 0) {
+        return 0;
+    }
+
+    return workMinutes / 60;
+}
+
+/**
+ * Updates all planner calculations
+ */
+function updatePlannerCalculations() {
+    const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri'];
+    let totalWeeklyHours = 0;
+
+    weekdays.forEach(day => {
+        const startTime = elements[`${day}Start`].value;
+        const endTime = elements[`${day}End`].value;
+        const breakMinutes = parseInt(elements[`${day}Break`].value) || 0;
+
+        const dailyHours = calculateDailyHours(startTime, endTime, breakMinutes);
+        totalWeeklyHours += dailyHours;
+
+        // Update daily hours display
+        elements[`${day}Hours`].textContent = dailyHours > 0
+            ? `${dailyHours.toFixed(2)}h`
+            : '-';
+    });
+
+    // Calculate percentage (39h = 100%)
+    const percentage = (totalWeeklyHours / WORK_TIME_CONFIG.WEEKLY_HOURS_FULL_TIME) * 100;
+
+    // Update results
+    elements.plannerWeeklyHours.textContent = `${totalWeeklyHours.toFixed(2)}h`;
+    elements.plannerPercentage.textContent = `${percentage.toFixed(1)}%`;
+
+    // Auto-populate the percentage field
+    if (percentage > 0 && percentage <= 100) {
+        elements.workPercentage.value = percentage.toFixed(1);
+    }
+}
+
+// ========================================
+// Button-triggered Data Loading
+// ========================================
+
+/**
+ * Lädt Daten und berechnet 100%-Basisdaten nach Button-Klick
+ */
+async function handleLoadData() {
+    try {
+        const schoolYear = elements.schoolYear.value;
+
+        // Flexible Ferientage sammeln
+        const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
+        const flexDates = [];
+        for (let i = 1; i <= flexDaysCount; i++) {
+            const input = document.getElementById(`flexDate${i}`);
+            if (input && input.value) {
+                flexDates.push(input.value);
+            }
+        }
+
+        // Zeige Ladeanzeige
+        showLoading(true);
+
+        // API-Daten laden (mit Caching)
+        if (!cachedApiData || currentSchoolYear !== schoolYear) {
+            cachedApiData = await fetchAllData(schoolYear);
+            currentSchoolYear = schoolYear;
+        }
+
+        const holidays = cachedApiData.holidays;
+        const vacations = processVacations(cachedApiData.vacations);
+
+        // Berechnung bei 100% durchführen
+        const baseResults = calculateWorkingTime({
+            schoolYear,
+            workPercentage: 100, // Immer 100% für Basisdaten
+            vacations,
+            holidays,
+            flexDates
+        });
+
+        // 100%-Basisdaten anzeigen
+        displayBaseResults(baseResults);
+
+        // Basisdaten-Bereich einblenden
+        elements.baseResults.style.display = 'block';
+
+        showLoading(false);
+
+    } catch (error) {
+        logScript.error('Data loading error:', error);
+        alert(`Fehler beim Laden der Daten: ${error.message}`);
+        showLoading(false);
+    }
+}
+
+/**
+ * Zeigt die 100%-Basisdaten an
+ */
+function displayBaseResults(results) {
+    // Context stage
+    elements.periodDisplay.textContent = `${results.period.start} - ${results.period.end}`;
+
+    // Tagesverteilung
+    const totalWeekdays = results.days.totalWorkdays + results.days.holidayCount;
+    elements.totalWeekdays.textContent = totalWeekdays;
+    elements.totalHolidays.textContent = results.days.holidayCount;
+    elements.totalWorkdays.textContent = results.days.totalWorkdays;
+    elements.schoolDays.textContent = results.days.schoolDays;
+    elements.nonSchoolDays.textContent = results.days.totalNonSchoolDays;
+    elements.nonSchoolDaysBreakdown.textContent =
+        `Ferien: ${results.days.vacationDays} | Flexible Tage: ${results.days.flexDaysOnly}`;
+
+    // 100%-Arbeitszeit
+    elements.baseWeeklyHours.textContent = '39h'; // Immer 39h bei 100%
+    elements.baseYearlyHours.textContent = `${results.hours.yearlyTarget}h`;
+
+    // Detailansichten
+    displayCalendar(results.details.dayClassification);
+    displayMonthlyTable(results.details.monthlyBreakdown, results.workModel);
+}
+
+/**
+ * Handler für Button-triggered Teilzeit-Berechnung
+ */
+function handleCalculateParttime() {
+    const percentage = parseFloat(elements.workPercentage.value);
+
+    if (!cachedApiData) {
+        // Noch keine Basisdaten berechnet
+        alert('Bitte laden Sie zuerst die Basisdaten im Abschnitt "Schuljahr & Ferientage".');
+        return;
+    }
+
+    if (percentage > 0 && percentage <= 100) {
+        const schoolYear = elements.schoolYear.value;
+        const holidays = cachedApiData.holidays;
+        const vacations = processVacations(cachedApiData.vacations);
+
+        // Flexible Ferientage sammeln
+        const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
+        const flexDates = [];
+        for (let i = 1; i <= flexDaysCount; i++) {
+            const input = document.getElementById(`flexDate${i}`);
+            if (input && input.value) {
+                flexDates.push(input.value);
+            }
+        }
+
+        calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage);
+    } else {
+        alert('Bitte geben Sie einen gültigen Prozentsatz zwischen 1 und 100 ein.');
+    }
+}
+
+/**
+ * Berechnet und zeigt Teilzeit-Ergebnisse
+ */
+function calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage) {
+    const parttimeResults = calculateWorkingTime({
+        schoolYear,
+        workPercentage: percentage,
+        vacations,
+        holidays,
+        flexDates
+    });
+
+    displayParttimeResults(parttimeResults, percentage);
+}
+
+/**
+ * Zeigt die Teilzeit-Endergebnisse an
+ */
+function displayParttimeResults(results, percentage) {
+    // Überschrift aktualisieren
+    const percentageText = percentage === 100 ? '100% Vollzeit' : `${percentage.toFixed(1)}% Teilzeit`;
+
+    // Update heading - find the h3 element and update its content
+    const heading = elements.parttimeResults.querySelector('.section-header h3');
+    if (heading) {
+        heading.innerHTML = percentage === 100
+            ? '🎯 Ihre Arbeitszeit (100% Vollzeit)'
+            : `🎯 Ihre Arbeitszeit (<span id="displayPercentage">${percentage.toFixed(1)}</span>% Teilzeit)`;
+    }
+
+    // Stundenberechnung
+    elements.nonSchoolDays2.textContent = results.days.totalNonSchoolDays;
+    elements.remainingDays.textContent = results.days.remainingFreeDays;
+    elements.dailyExtra.textContent = `${results.hours.dailyExtra}h`;
+
+    // Endergebnisse
+    elements.weeklyHours.textContent = `${results.workModel.weeklyHoursDuringSchool}h`;
+    elements.yearlyHours.textContent = `${results.hours.yearlyTarget}h`;
+
+    // Teilzeit-Bereich einblenden
+    elements.parttimeResults.style.display = 'block';
+}
 
 // ========================================
 // Fehlerbehandlung
