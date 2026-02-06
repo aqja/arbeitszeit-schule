@@ -54,10 +54,12 @@ function initializeElements() {
         // Ergebnisfelder
         periodDisplay: document.getElementById('periodDisplay'),
         workModelDisplay: document.getElementById('workModelDisplay'),
+        totalWeekdays: document.getElementById('totalWeekdays'),
         totalHolidays: document.getElementById('totalHolidays'),
         totalWorkdays: document.getElementById('totalWorkdays'),
         schoolDays: document.getElementById('schoolDays'),
         nonSchoolDays: document.getElementById('nonSchoolDays'),
+        nonSchoolDays2: document.getElementById('nonSchoolDays2'),
         nonSchoolDaysBreakdown: document.getElementById('nonSchoolDaysBreakdown'),
         remainingDays: document.getElementById('remainingDays'),
         dailyExtra: document.getElementById('dailyExtra'),
@@ -381,32 +383,33 @@ function showLoading(show) {
  * @param {Object} results - Berechnungsergebnisse
  */
 function displayResults(results) {
-    // Zeitraum
+    // Context stage
     elements.periodDisplay.textContent = `${results.period.start} - ${results.period.end}`;
-
-    // Arbeitszeitmodell
     elements.workModelDisplay.textContent =
         `${results.workModel.percentage}% (${results.workModel.weeklyTargetHours}h/Woche)`;
 
-    // Tageszahlen
+    // Day breakdown stage
+    // Calculate total weekdays (before removing holidays)
+    const totalWeekdays = results.days.totalWorkdays + results.days.holidayCount;
+    elements.totalWeekdays.textContent = totalWeekdays;
+
     elements.totalHolidays.textContent = results.days.holidayCount;
     elements.totalWorkdays.textContent = results.days.totalWorkdays;
     elements.schoolDays.textContent = results.days.schoolDays;
     elements.nonSchoolDays.textContent = results.days.totalNonSchoolDays;
-
-    // Breakdown der schulfreien Tage (ohne Feiertage, die sind bereits raus!)
     elements.nonSchoolDaysBreakdown.textContent =
-        `Ferien: ${results.days.vacationDays} | ` +
-        `Flexible Tage: ${results.days.flexDaysOnly}`;
+        `Ferien: ${results.days.vacationDays} | Flexible Tage: ${results.days.flexDaysOnly}`;
 
+    // Hour calculation stage (duplicate nonSchoolDays for visual flow)
+    elements.nonSchoolDays2.textContent = results.days.totalNonSchoolDays;
     elements.remainingDays.textContent = results.days.remainingFreeDays;
-
-    // Stunden
     elements.dailyExtra.textContent = `${results.hours.dailyExtra}h`;
+
+    // Final results stage
     elements.weeklyHours.textContent = `${results.workModel.weeklyHoursDuringSchool}h`;
     elements.yearlyHours.textContent = `${results.hours.yearlyTarget}h`;
 
-    // Detailansichten
+    // Detail views (unchanged)
     displayCalendar(results.details.dayClassification);
     displayMonthlyTable(results.details.monthlyBreakdown, results.workModel);
 }

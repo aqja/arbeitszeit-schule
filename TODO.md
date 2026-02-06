@@ -1,0 +1,1 @@
+Entwickele daraus einen Arbeitszeitplaner, mit dem konkrete Arbeitszeiten für eine normale Woche definiert werden können. 

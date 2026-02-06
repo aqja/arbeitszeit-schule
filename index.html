@@ -55,65 +55,97 @@
             <section id="resultsSection" class="results-section" style="display: none;">
                 <h2>Ergebnisse</h2>
 
-                <div class="results-grid">
-                    <div class="result-card">
-                        <h3>Zeitraum</h3>
-                        <p id="periodDisplay">-</p>
+                <div class="results-flow">
+                    <!-- Stage 1: Context -->
+                    <div class="calculation-stage">
+                        <h3>📋 Berechnungsgrundlage</h3>
+                        <div class="flow-container">
+                            <div class="result-card compact">
+                                <h4>Zeitraum</h4>
+                                <p id="periodDisplay" class="value">-</p>
+                            </div>
+                            <div class="result-card compact">
+                                <h4>Arbeitszeitmodell</h4>
+                                <p id="workModelDisplay" class="value">-</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="result-card">
-                        <h3>Arbeitszeitmodell</h3>
-                        <p id="workModelDisplay">-</p>
+                    <!-- Stage 2: Day Breakdown -->
+                    <div class="calculation-stage">
+                        <h3>📅 Tagesverteilung</h3>
+                        <div class="flow-container">
+                            <div class="result-card compact">
+                                <h4>Wochentage</h4>
+                                <p id="totalWeekdays" class="value">-</p>
+                                <span class="sublabel">Mo-Fr gesamt</span>
+                            </div>
+                            <div class="flow-connector minus"></div>
+                            <div class="result-card compact">
+                                <h4>Feiertage</h4>
+                                <p id="totalHolidays" class="value">-</p>
+                            </div>
+                            <div class="flow-connector equals"></div>
+                            <div class="result-card compact highlight">
+                                <h4>Arbeitstage</h4>
+                                <p id="totalWorkdays" class="value">-</p>
+                            </div>
+                            <div class="flow-connector arrow"></div>
+                            <div class="result-card compact highlight-green">
+                                <h4>Schultage</h4>
+                                <p id="schoolDays" class="value">-</p>
+                            </div>
+                            <div class="flow-connector plus"></div>
+                            <div class="result-card compact highlight-blue">
+                                <h4>Schulfreie Tage</h4>
+                                <p id="nonSchoolDays" class="value">-</p>
+                                <span id="nonSchoolDaysBreakdown" class="sublabel">-</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="result-card">
-                        <h3>Feiertage</h3>
-                        <p id="totalHolidays" class="big-number">-</p>
-                        <small class="help-text">Werden nicht mitgezählt</small>
+                    <!-- Stage 3: Hour Calculation -->
+                    <div class="calculation-stage">
+                        <h3>⏱️ Stundenberechnung</h3>
+                        <div class="flow-container">
+                            <div class="result-card compact highlight-blue">
+                                <h4>Schulfreie Tage</h4>
+                                <p id="nonSchoolDays2" class="value">-</p>
+                            </div>
+                            <div class="flow-connector minus"></div>
+                            <div class="result-card compact">
+                                <h4>Urlaubstage</h4>
+                                <p class="value">30</p>
+                            </div>
+                            <div class="flow-connector equals"></div>
+                            <div class="result-card compact highlight-orange">
+                                <h4>Verbleibende Ferientage</h4>
+                                <p id="remainingDays" class="value">-</p>
+                                <span class="sublabel">Überstundenabbau notwendig</span>
+                            </div>
+                            <div class="flow-connector arrow"></div>
+                            <div class="result-card compact highlight-red">
+                                <h4>Täglich notwendiger Überstundenaufbau</h4>
+                                <p id="dailyExtra" class="value">-</p>
+                                <span class="sublabel">mittlere Mehrarbeit während Schultagen</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="result-card highlight">
-                        <h3>Arbeitstage gesamt</h3>
-                        <p id="totalWorkdays" class="big-number">-</p>
-                        <small class="help-text">Ohne Ferien/Urlaub</small>
-                    </div>
-
-                    <div class="result-card highlight-green">
-                        <h3>Schultage</h3>
-                        <p id="schoolDays" class="big-number">-</p>
-                    </div>
-
-                    <div class="result-card highlight-blue">
-                        <h3>Schulfreie Tage</h3>
-                        <p id="nonSchoolDays" class="big-number">-</p>
-                        <small id="nonSchoolDaysBreakdown" class="breakdown">-</small>
-                    </div>
-
-                    <div class="result-card">
-                        <h3>Urlaubstage</h3>
-                        <p class="big-number">30 Tage</p>
-                    </div>
-
-                    <div class="result-card highlight-orange">
-                        <h3>Verbleibende freie Tage</h3>
-                        <p id="remainingDays" class="big-number">-</p>
-                        <small class="help-text">Für Überstundenabbau</small>
-                    </div>
-
-                    <div class="result-card highlight-red">
-                        <h3>Tägliche Mehrarbeit</h3>
-                        <p id="dailyExtra" class="big-number">-</p>
-                        <small class="help-text">Während der Schultage</small>
-                    </div>
-
-                    <div class="result-card highlight-red">
-                        <h3>Wochenarbeitszeit (Schulzeit)</h3>
-                        <p id="weeklyHours" class="big-number">-</p>
-                    </div>
-
-                    <div class="result-card highlight">
-                        <h3>Jahresarbeitsstunden</h3>
-                        <p id="yearlyHours" class="big-number">-</p>
+                    <!-- Stage 4: Final Results -->
+                    <div class="calculation-stage">
+                        <h3>✅ Endergebnis</h3>
+                        <div class="flow-container">
+                            <div class="result-card emphasis highlight-red">
+                                <h4>Wochenarbeitszeit</h4>
+                                <p id="weeklyHours" class="value">-</p>
+                                <span class="sublabel">während der Schulzeit</span>
+                            </div>
+                            <div class="result-card emphasis highlight">
+                                <h4>Jahresarbeitsstunden</h4>
+                                <p id="yearlyHours" class="value">-</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
