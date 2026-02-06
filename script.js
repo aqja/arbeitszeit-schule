@@ -16,6 +16,22 @@ const API_CONFIG = {
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Stunden in Millisekunden
 
+/**
+ * Logging-Konfiguration
+ * Setze DEBUG auf false für Produktionsumgebung
+ */
+const DEBUG_SCRIPT = true;
+
+/**
+ * Strukturiertes Logging-System
+ */
+const logScript = {
+    debug: (...args) => DEBUG_SCRIPT && console.log('[DEBUG]', ...args),
+    info: (...args) => console.log('[INFO]', ...args),
+    warn: (...args) => console.warn('[WARN]', ...args),
+    error: (...args) => console.error('[ERROR]', ...args)
+};
+
 // ========================================
 // DOM-Elemente
 // ========================================
@@ -38,6 +54,7 @@ function initializeElements() {
         // Ergebnisfelder
         periodDisplay: document.getElementById('periodDisplay'),
         workModelDisplay: document.getElementById('workModelDisplay'),
+        totalHolidays: document.getElementById('totalHolidays'),
         totalWorkdays: document.getElementById('totalWorkdays'),
         schoolDays: document.getElementById('schoolDays'),
         nonSchoolDays: document.getElementById('nonSchoolDays'),
@@ -129,15 +146,15 @@ function getFromCache(key) {
         const now = Date.now();
 
         if (now - timestamp < CACHE_DURATION) {
-            console.log(`Cache hit for ${key}`);
+            logScript.debug(`Cache hit for ${key}`);
             return data;
         } else {
-            console.log(`Cache expired for ${key}`);
+            logScript.debug(`Cache expired for ${key}`);
             localStorage.removeItem(key);
             return null;
         }
     } catch (error) {
-        console.error('Cache read error:', error);
+        logScript.error('Cache read error:', error);
         return null;
     }
 }
@@ -154,9 +171,9 @@ function saveToCache(key, data) {
             timestamp: Date.now()
         };
         localStorage.setItem(key, JSON.stringify(cacheObject));
-        console.log(`Cached data for ${key}`);
+        logScript.debug(`Cached data for ${key}`);
     } catch (error) {
-        console.error('Cache write error:', error);
+        logScript.error('Cache write error:', error);
     }
 }
 
@@ -170,23 +187,27 @@ async function fetchHolidays(year) {
     const cached = getFromCache(cacheKey);
 
     if (cached) {
+        logScript.debug(`Feiertage ${year} aus Cache geladen:`, cached);
         return cached;
     }
 
     try {
         const url = `${API_CONFIG.holidays}?jahr=${year}&nur_land=HE`;
-        console.log(`Fetching holidays from: ${url}`);
+        logScript.info(`Lade Feiertage von: ${url}`);
 
         const response = await fetch(url);
+        logScript.debug(`Feiertage-API Response Status: ${response.status}`);
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        logScript.debug(`Feiertage ${year} erhalten:`, data);
         saveToCache(cacheKey, data);
         return data;
     } catch (error) {
-        console.error('Error fetching holidays:', error);
+        logScript.error('Error fetching holidays:', error);
         throw new Error(`Fehler beim Laden der Feiertage: ${error.message}`);
     }
 }
@@ -206,7 +227,7 @@ async function fetchVacations(year) {
 
     try {
         const url = `${API_CONFIG.vacations}${year}/HE/`;
-        console.log(`Fetching vacations from: ${url}`);
+        logScript.info(`Fetching vacations from: ${url}`);
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -217,7 +238,7 @@ async function fetchVacations(year) {
         saveToCache(cacheKey, data);
         return data;
     } catch (error) {
-        console.error('Error fetching vacations:', error);
+        logScript.error('Error fetching vacations:', error);
         throw new Error(`Fehler beim Laden der Schulferien: ${error.message}`);
     }
 }
@@ -229,6 +250,9 @@ async function fetchVacations(year) {
  */
 async function fetchAllData(schoolYear) {
     const [startYear, endYear] = schoolYear.split('-').map(Number);
+
+    logScript.info(`=== LADE DATEN FÜR SCHULJAHR ${schoolYear} ===`);
+    logScript.debug(`Startjahr: ${startYear}, Endjahr: ${endYear}`);
 
     try {
         // Parallele API-Aufrufe für bessere Performance
@@ -244,18 +268,27 @@ async function fetchAllData(schoolYear) {
             fetchVacations(endYear)
         ]);
 
-        // Feiertage kombinieren
-        const allHolidays = { ...holidaysStart, ...holidaysEnd };
+        logScript.debug(`Feiertage ${startYear}:`, holidaysStart);
+        logScript.debug(`Feiertage ${endYear}:`, holidaysEnd);
+
+        // Feiertage MÜSSEN als Arrays kombiniert werden, da Objekt-Merge gleiche Namen überschreibt
+        // (z.B. "Tag der Deutschen Einheit" existiert in beiden Jahren)
+        const processedHolidaysStart = processHolidays(holidaysStart);
+        const processedHolidaysEnd = processHolidays(holidaysEnd);
+        const allHolidays = [...processedHolidaysStart, ...processedHolidaysEnd];
+        logScript.debug('Kombinierte Feiertage (Array):', allHolidays);
+        logScript.debug('Anzahl Feiertage:', allHolidays.length);
 
         // Ferien kombinieren
         const allVacations = [...vacationsStart, ...vacationsEnd];
+        logScript.debug('Anzahl Ferienperioden:', allVacations.length);
 
         return {
             holidays: allHolidays,
             vacations: allVacations
         };
     } catch (error) {
-        console.error('Error fetching all data:', error);
+        logScript.error('Error fetching all data:', error);
         throw error;
     }
 }
@@ -295,9 +328,18 @@ async function handleCalculate() {
         // Daten von APIs laden
         const apiData = await fetchAllData(schoolYear);
 
-        // Daten verarbeiten
-        const holidays = processHolidays(apiData.holidays);
+        // Debug: API-Daten anzeigen
+        logScript.debug('=== API-DATEN DEBUG ===');
+        logScript.debug('Verarbeitete Feiertage:', apiData.holidays);
+        logScript.debug('Rohe Ferien-Daten:', apiData.vacations);
+
+        // Feiertage sind bereits verarbeitet (passiert in fetchAllData)
+        const holidays = apiData.holidays;
         const vacations = processVacations(apiData.vacations);
+
+        // Debug: Verarbeitete Daten
+        logScript.debug('Verarbeitete Feiertage:', holidays);
+        logScript.debug('Verarbeitete Ferien:', vacations);
 
         // Berechnung durchführen
         const results = calculateWorkingTime({
@@ -319,7 +361,7 @@ async function handleCalculate() {
         elements.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     } catch (error) {
-        console.error('Calculation error:', error);
+        logScript.error('Calculation error:', error);
         alert(`Fehler bei der Berechnung: ${error.message}`);
         showLoading(false);
     }
@@ -347,14 +389,14 @@ function displayResults(results) {
         `${results.workModel.percentage}% (${results.workModel.weeklyTargetHours}h/Woche)`;
 
     // Tageszahlen
+    elements.totalHolidays.textContent = results.days.holidayCount;
     elements.totalWorkdays.textContent = results.days.totalWorkdays;
     elements.schoolDays.textContent = results.days.schoolDays;
     elements.nonSchoolDays.textContent = results.days.totalNonSchoolDays;
 
-    // Breakdown der schulfreien Tage
+    // Breakdown der schulfreien Tage (ohne Feiertage, die sind bereits raus!)
     elements.nonSchoolDaysBreakdown.textContent =
         `Ferien: ${results.days.vacationDays} | ` +
-        `Feiertage: ${results.days.holidaysOnly} | ` +
         `Flexible Tage: ${results.days.flexDaysOnly}`;
 
     elements.remainingDays.textContent = results.days.remainingFreeDays;
@@ -488,26 +530,17 @@ function displayMonthlyTable(monthlyBreakdown, workModel) {
 // Hilfsfunktionen
 // ========================================
 
-/**
- * Formatiert ein Datum für die Anzeige
- * @param {Date} date - Zu formatierendes Datum
- * @returns {string} - Formatiertes Datum (DD.MM.YYYY)
- */
-function formatDateForDisplay(date) {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
-}
+// Alle Hilfsfunktionen für Datums- und String-Formatierung
+// befinden sich jetzt in utils.js
 
 // ========================================
 // Fehlerbehandlung
 // ========================================
 
 window.addEventListener('error', (event) => {
-    console.error('Global error:', event.error);
+    logScript.error('Global error:', event.error);
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason);
+    logScript.error('Unhandled promise rejection:', event.reason);
 });

@@ -10,7 +10,7 @@
     <div class="container">
         <header>
             <h1>Arbeitszeit-Rechner für Schulen in Hessen</h1>
-            <p class="subtitle">Berechnung der monatlichen und jährlichen Arbeitszeit für Lehrkräfte</p>
+            <p class="subtitle">Berechnung der täglichen, monatlichen und jährlichen Arbeitszeit für Mitarbeitende</p>
         </header>
 
         <main>
@@ -21,7 +21,6 @@
                 <div class="form-group">
                     <label for="schoolYear">Schuljahr:</label>
                     <select id="schoolYear" name="schoolYear">
-                        <option value="2024-2025">2024/2025</option>
                         <option value="2025-2026" selected>2025/2026</option>
                         <option value="2026-2027">2026/2027</option>
                     </select>
@@ -67,9 +66,16 @@
                         <p id="workModelDisplay">-</p>
                     </div>
 
+                    <div class="result-card">
+                        <h3>Feiertage</h3>
+                        <p id="totalHolidays" class="big-number">-</p>
+                        <small class="help-text">Werden nicht mitgezählt</small>
+                    </div>
+
                     <div class="result-card highlight">
-                        <h3>Werktage gesamt</h3>
+                        <h3>Arbeitstage gesamt</h3>
                         <p id="totalWorkdays" class="big-number">-</p>
+                        <small class="help-text">Ohne Ferien/Urlaub</small>
                     </div>
 
                     <div class="result-card highlight-green">
@@ -84,7 +90,7 @@
                     </div>
 
                     <div class="result-card">
-                        <h3>Gesetzlicher Urlaub</h3>
+                        <h3>Urlaubstage</h3>
                         <p class="big-number">30 Tage</p>
                     </div>
 
@@ -120,7 +126,6 @@
                         <span class="legend-item"><span class="color-box holiday-day"></span> Feiertag (außerhalb Ferien)</span>
                         <span class="legend-item"><span class="color-box flex-day"></span> Flexibler Ferientag (außerhalb Ferien)</span>
                         <span class="legend-item"><span class="color-box holiday-in-vacation"></span> Feiertag in Ferien</span>
-                        <span class="legend-item"><span class="color-box flex-in-vacation"></span> Flexibler Tag in Ferien</span>
                     </div>
                     <div id="calendarView" class="calendar-view">
                         <!-- Wird dynamisch gefüllt -->
@@ -135,10 +140,10 @@
                             <tr>
                                 <th>Monat</th>
                                 <th>Werktage</th>
-                                <th>Schultage</th>
-                                <th>Schulfreie Tage</th>
-                                <th>Sollstunden</th>
-                                <th>Tatsächliche Stunden</th>
+                                <th>davon Schultage</th>
+                                <th>= Schulfrei (inkl. 30d Urlaub)</th>
+                                <th>theoretische Sollstunden</th>
+                                <th>Sollstunden mit Einarbeit Ferienausgleich, abzüglich Urlaubstage</th>
                             </tr>
                         </thead>
                         <tbody id="monthlyTableBody">
@@ -157,6 +162,7 @@
         </footer>
     </div>
 
+    <script src="utils.js"></script>
     <script src="calculator.js"></script>
     <script src="script.js"></script>
 </body>

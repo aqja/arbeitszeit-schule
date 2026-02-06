@@ -1,10 +1,10 @@
 # Arbeitszeit-Rechner für Schulen in Hessen
 
-Ein schlankes Webtool zur Berechnung der monatlichen und jährlichen Arbeitszeit für Lehrkräfte an Schulen in Hessen.
+Ein schlankes Webtool zur Berechnung der monatlichen und jährlichen Arbeitszeit für Mitarbeitende an Schulen in Hessen.
 
 ## Beschreibung
 
-Dieses Tool berechnet die Arbeitszeitverteilung für Lehrkräfte unter Berücksichtigung von:
+Dieses Tool berechnet die Arbeitszeitverteilung für Mitarbeitende unter Berücksichtigung von:
 - Schuljahreszeitraum (1. August bis 31. Juli)
 - Wöchentlicher Arbeitszeit (Basis: 40 Stunden für 100% Stelle)
 - Schulferien in Hessen
@@ -77,14 +77,17 @@ Klicken Sie auf "Berechnen" - die App lädt automatisch die aktuellen Ferien- un
 
 ### Ergebnisse verstehen
 
-#### Werktage gesamt
-Alle Montag-Freitag-Tage im Schuljahr (ohne Wochenenden).
+#### Feiertage (wie Wochenende)
+Gesetzliche Feiertage werden wie Wochenenden behandelt und NICHT als Arbeitstage gezählt.
+
+#### Arbeitstage gesamt
+Alle Montag-Freitag-Tage im Schuljahr **MINUS Feiertage** (ohne Wochenenden und Feiertage).
 
 #### Schultage
-Werktage minus schulfreie Tage (Ferien + Feiertage + flexible Ferientage).
+Arbeitstage minus schulfreie Tage (Ferien + flexible Ferientage).
 
 #### Schulfreie Tage
-Summe aus Schulferien, Feiertagen (die nicht in Ferien fallen) und flexiblen Ferientagen.
+Summe aus Schulferien und flexiblen Ferientagen (OHNE Feiertage, da diese bereits aus den Arbeitstagen herausgerechnet sind).
 
 #### Verbleibende freie Tage
 Schulfreie Tage minus 30 Tage gesetzlicher Urlaub.
@@ -207,24 +210,27 @@ Falls veraltete Daten angezeigt werden:
 Ausgangsdaten:
 - Schuljahr: 01.08.2024 - 31.07.2025
 - Arbeitszeitmodell: 100% (39h/Woche, 7,8h/Tag)
-- Werktage gesamt: ~260 Tage
-- Schulferien: ~75 Tage
-- Feiertage (nur Werktage, nicht in Ferien): ~8 Tage
+- Alle Mo-Fr Tage: ~260 Tage
+- Feiertage (Werktage): ~10 Tage
+- Arbeitstage (ohne Feiertage): ~250 Tage
+- Schulferien: ~70 Tage
 - Flexible Ferientage: 0 Tage
 
 Berechnung:
-1. Schulfreie Tage = 75 + 8 + 0 = 83 Tage
-2. Schultage = 260 - 83 = 177 Tage
-3. Verbleibende freie Tage = 83 - 30 (Urlaub) = 53 Tage
-4. Tägliche Sollarbeitszeit = 7,8h × 100% = 7,8h
-5. Zu kompensierende Stunden = 53 Tage × 7,8h = 413,4h
-6. Tägliche Mehrarbeit = 413,4h ÷ 177 Tage = 2,34h
-7. Wochenarbeitszeit (Schulzeit) = 39h + (5 × 2,34h) = 50,7h
+1. Arbeitstage = 260 Mo-Fr - 10 Feiertage = 250 Tage
+2. Schulfreie Tage = 70 (Ferien) + 0 (Flexible) = 70 Tage
+3. Schultage = 250 - 70 = 180 Tage
+4. Verbleibende freie Tage = 70 - 30 (Urlaub) = 40 Tage
+5. Tägliche Sollarbeitszeit = 7,8h × 100% = 7,8h
+6. Zu kompensierende Stunden = 40 Tage × 7,8h = 312h
+7. Tägliche Mehrarbeit = 312h ÷ 180 Tage = 1,73h
+8. Wochenarbeitszeit (Schulzeit) = 39h + (5 × 1,73h) = 47,7h
 
 Ergebnis:
-- Während der Schulzeit: ~50,7h/Woche
+- Während der Schulzeit: ~47,7h/Woche
 - An schulfreien Tagen: 0h/Woche
 - Jahresschnitt: 39h/Woche ✓
+- Feiertage: Werden wie Wochenende NICHT mitgezählt
 ```
 
 ### Beispiel 2: 50% Teilzeitstelle, Schuljahr 2024/2025
@@ -233,22 +239,24 @@ Ergebnis:
 Ausgangsdaten:
 - Schuljahr: 01.08.2024 - 31.07.2025
 - Arbeitszeitmodell: 50% (19,5h/Woche, 3,9h/Tag)
-- Werktage gesamt: ~260 Tage
-- Schulferien: ~75 Tage
-- Feiertage (nur Werktage, nicht in Ferien): ~8 Tage
+- Alle Mo-Fr Tage: ~260 Tage
+- Feiertage (Werktage): ~10 Tage
+- Arbeitstage (ohne Feiertage): ~250 Tage
+- Schulferien: ~70 Tage
 - Flexible Ferientage: 0 Tage
 
 Berechnung:
-1. Schulfreie Tage = 75 + 8 + 0 = 83 Tage
-2. Schultage = 260 - 83 = 177 Tage
-3. Verbleibende freie Tage = 83 - 30 (Urlaub) = 53 Tage
-4. Tägliche Sollarbeitszeit = 7,8h × 50% = 3,9h
-5. Zu kompensierende Stunden = 53 Tage × 3,9h = 206,7h
-6. Tägliche Mehrarbeit = 206,7h ÷ 177 Tage = 1,17h
-7. Wochenarbeitszeit (Schulzeit) = 19,5h + (5 × 1,17h) = 25,35h
+1. Arbeitstage = 260 Mo-Fr - 10 Feiertage = 250 Tage
+2. Schulfreie Tage = 70 (Ferien) + 0 (Flexible) = 70 Tage
+3. Schultage = 250 - 70 = 180 Tage
+4. Verbleibende freie Tage = 70 - 30 (Urlaub) = 40 Tage
+5. Tägliche Sollarbeitszeit = 7,8h × 50% = 3,9h
+6. Zu kompensierende Stunden = 40 Tage × 3,9h = 156h
+7. Tägliche Mehrarbeit = 156h ÷ 180 Tage = 0,87h
+8. Wochenarbeitszeit (Schulzeit) = 19,5h + (5 × 0,87h) = 23,85h
 
 Ergebnis:
-- Während der Schulzeit: ~25,4h/Woche
+- Während der Schulzeit: ~23,9h/Woche
 - An schulfreien Tagen: 0h/Woche
 - Jahresschnitt: 19,5h/Woche ✓
 ```
@@ -259,24 +267,28 @@ Ergebnis:
 Ausgangsdaten:
 - Schuljahr: 01.08.2024 - 31.07.2025
 - Arbeitszeitmodell: 25% (9,75h/Woche, 1,95h/Tag)
-- Werktage gesamt: ~260 Tage
-- Schulfreie Tage: 83 Tage
-- Schultage: 177 Tage
-- Verbleibende freie Tage: 53 Tage
+- Arbeitstage (ohne Feiertage): ~250 Tage
+- Schulfreie Tage: 70 Tage
+- Schultage: 180 Tage
+- Verbleibende freie Tage: 40 Tage
 
 Berechnung:
 1. Tägliche Sollarbeitszeit = 7,8h × 25% = 1,95h
-2. Zu kompensierende Stunden = 53 Tage × 1,95h = 103,35h
-3. Tägliche Mehrarbeit = 103,35h ÷ 177 Tage = 0,58h
-4. Wochenarbeitszeit (Schulzeit) = 9,75h + (5 × 0,58h) = 12,65h
+2. Zu kompensierende Stunden = 40 Tage × 1,95h = 78h
+3. Tägliche Mehrarbeit = 78h ÷ 180 Tage = 0,43h
+4. Wochenarbeitszeit (Schulzeit) = 9,75h + (5 × 0,43h) = 11,9h
 
 Ergebnis:
-- Während der Schulzeit: ~12,7h/Woche
+- Während der Schulzeit: ~11,9h/Woche
 - An schulfreien Tagen: 0h/Woche
 - Jahresschnitt: 9,75h/Woche ✓
 ```
 
-**Wichtig**: Bei Teilzeit reduziert sich sowohl die Sollarbeitszeit als auch die zu kompensierende Zeit proportional. Ein schulfreier Tag zählt bei 50% Teilzeit nur 3,9 Stunden, bei 25% Teilzeit nur 1,95 Stunden statt 7,8 Stunden (100% Vollzeit). Das Tool unterstützt jedes Arbeitszeitmodell von 1% bis 100%.
+**Wichtig**:
+- **Feiertage werden wie Wochenenden behandelt** und sind KEINE Arbeitstage!
+- Bei Teilzeit reduziert sich sowohl die Sollarbeitszeit als auch die zu kompensierende Zeit proportional
+- Ein schulfreier Tag zählt bei 50% Teilzeit nur 3,9 Stunden, bei 25% Teilzeit nur 1,95 Stunden statt 7,8 Stunden (100% Vollzeit)
+- Das Tool unterstützt jedes Arbeitszeitmodell von 1% bis 100%
 
 ## Anpassungen und Erweiterungen
 
@@ -369,7 +381,7 @@ Dieses Projekt ist gemeinfrei. Sie können es frei verwenden, modifizieren und v
 Dieses Tool dient zur Orientierung. Bitte prüfen Sie die Ergebnisse und konsultieren Sie bei Fragen Ihre Schulleitung oder Personalvertretung.
 
 Die Berechnungen basieren auf:
-- 40-Stunden-Woche für 100% Vollzeitstelle
+- 39-Stunden-Woche für 100% Vollzeitstelle
 - 30 Tagen gesetzlichem Urlaub
 - Gleichverteilung der Mehrarbeit über alle Schultage
 
@@ -388,4 +400,4 @@ Bei Fragen oder Problemen:
 
 ---
 
-Entwickelt für Lehrkräfte an Schulen in Hessen 🎓
+Entwickelt für Mitarbeitende an Schulen in Hessen 🎓

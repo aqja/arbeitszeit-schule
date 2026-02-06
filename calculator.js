@@ -3,88 +3,41 @@
  * Berechnungslogik für Arbeitszeit-Rechner
  *
  * Dieses Modul enthält alle Funktionen zur Berechnung der Arbeitszeitverteilung
- * für Lehrkräfte an Schulen in Hessen.
+ * für Mitarbeitende an Schulen in Hessen.
+ *
+ * HINWEIS: Gemeinsame Hilfsfunktionen befinden sich in utils.js
  */
 
 // ========================================
-// Hilfsfunktionen für Datumsverarbeitung
+// Konfigurationskonstanten
 // ========================================
 
 /**
- * Konvertiert ein Datum in einen YYYY-MM-DD String
- * @param {Date} date - Das zu formatierende Datum
- * @returns {string} - Datum als YYYY-MM-DD String
+ * Arbeitszeitkonfiguration für Vollzeit (100%)
  */
-function formatDateToString(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
+const WORK_TIME_CONFIG = {
+    WEEKLY_HOURS_FULL_TIME: 39,      // Wöchentliche Arbeitszeit bei Vollzeit
+    DAILY_HOURS_FULL_TIME: 7.8,      // Tägliche Arbeitszeit bei Vollzeit
+    LEGAL_VACATION_DAYS: 30          // Gesetzliche Urlaubstage pro Jahr
+};
 
 /**
- * Prüft, ob ein Datum ein Werktag (Montag-Freitag) ist
- * @param {Date} date - Das zu prüfende Datum
- * @returns {boolean} - true wenn Werktag, false wenn Wochenende
+ * Logging-Konfiguration
+ * Setze DEBUG auf false für Produktionsumgebung
  */
-function isWeekday(date) {
-    const day = date.getDay();
-    return day !== 0 && day !== 6; // 0 = Sonntag, 6 = Samstag
-}
+const DEBUG = false;
 
 /**
- * Prüft, ob zwei Daten am selben Tag liegen
- * @param {Date} date1 - Erstes Datum
- * @param {Date} date2 - Zweites Datum
- * @returns {boolean} - true wenn beide am selben Tag
+ * Strukturiertes Logging-System
  */
-function isSameDay(date1, date2) {
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
-}
+const log = {
+    debug: (...args) => DEBUG && console.log('[DEBUG]', ...args),
+    info: (...args) => console.log('[INFO]', ...args),
+    warn: (...args) => console.warn('[WARN]', ...args),
+    error: (...args) => console.error('[ERROR]', ...args)
+};
 
-/**
- * Prüft, ob ein Datum in einem Zeitraum liegt
- * @param {Date} date - Das zu prüfende Datum
- * @param {Date} start - Startdatum des Zeitraums
- * @param {Date} end - Enddatum des Zeitraums
- * @returns {boolean} - true wenn Datum im Zeitraum liegt
- */
-function isDateInRange(date, start, end) {
-    return date >= start && date <= end;
-}
-
-/**
- * Erstellt ein Array aller Daten zwischen Start und Ende (inklusiv)
- * @param {Date} startDate - Startdatum
- * @param {Date} endDate - Enddatum
- * @returns {Array<Date>} - Array aller Daten im Zeitraum
- */
-function getDateRange(startDate, endDate) {
-    const dates = [];
-    const currentDate = new Date(startDate);
-
-    while (currentDate <= endDate) {
-        dates.push(new Date(currentDate));
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return dates;
-}
-
-/**
- * Gibt den Monatsnamen auf Deutsch zurück
- * @param {number} month - Monat (0-11, JavaScript Date Format)
- * @returns {string} - Deutscher Monatsname
- */
-function getMonthName(month) {
-    const months = [
-        'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
-    ];
-    return months[month];
-}
+// Alle Hilfsfunktionen für Datumsverarbeitung befinden sich jetzt in utils.js
 
 // ========================================
 // Schuljahr-Funktionen
@@ -162,9 +115,20 @@ function processHolidays(holidaysData) {
     }
 
     const holidays = [];
-    for (const [name, dateString] of Object.entries(holidaysData)) {
+    const years = new Set(); // Sammle alle Jahre für zusätzliche Feiertage
+
+    for (const [name, holidayInfo] of Object.entries(holidaysData)) {
+        // Die API gibt Objekte mit {datum: "YYYY-MM-DD", hinweis: "..."} zurück
+        const dateString = typeof holidayInfo === 'string' ? holidayInfo : holidayInfo.datum;
+
+        if (!dateString) {
+            log.warn(`Feiertag "${name}" hat kein gültiges Datum:`, holidayInfo);
+            continue;
+        }
+
         // Datum mit explizitem Mittag-Zeitstempel für korrekte Zeitzonenbehandlung
         const date = new Date(dateString + 'T12:00:00');
+        years.add(date.getFullYear()); // Jahr merken
 
         holidays.push({
             date: date,
@@ -172,6 +136,24 @@ function processHolidays(holidaysData) {
         });
     }
 
+    // Zusätzliche Feiertage hinzufügen: 24.12. (Heiligabend) und 31.12. (Silvester)
+    years.forEach(year => {
+        // 24.12. - Heiligabend
+        const heiligabend = new Date(`${year}-12-24T12:00:00`);
+        holidays.push({
+            date: heiligabend,
+            name: 'Heiligabend'
+        });
+
+        // 31.12. - Silvester
+        const silvester = new Date(`${year}-12-31T12:00:00`);
+        holidays.push({
+            date: silvester,
+            name: 'Silvester'
+        });
+    });
+
+    log.debug(`processHolidays: ${holidays.length} Feiertage verarbeitet (inkl. Heiligabend & Silvester)`);
     return holidays;
 }
 
@@ -241,6 +223,26 @@ function createFlexDaysSet(flexDates, startDate, endDate) {
     return flexDays;
 }
 
+/**
+ * Erstellt eine Map für schnelle Ferienperioden-Lookups
+ * PERFORMANCE-OPTIMIERUNG: O(1) Lookup statt O(n²)
+ * @param {Array} vacations - Verarbeitete Feriendaten
+ * @returns {Map<string, Object>} - Map mit Datums-String als Key, Ferienperiode als Value
+ */
+function createVacationLookupMap(vacations) {
+    const vacationMap = new Map();
+
+    vacations.forEach(vacation => {
+        const dates = getDateRange(vacation.start, vacation.end);
+        dates.forEach(date => {
+            const dateString = formatDateToString(date);
+            vacationMap.set(dateString, vacation);
+        });
+    });
+
+    return vacationMap;
+}
+
 // ========================================
 // Hauptberechnungen
 // ========================================
@@ -262,24 +264,28 @@ function calculateWorkingTime(params) {
     // Schuljahrdaten ermitteln
     const { startDate, endDate, displayStart, displayEnd } = getSchoolYearDates(schoolYear);
 
-    // Alle Werktage berechnen
-    const allWorkdays = calculateWorkdays(startDate, endDate);
+    // 1. Alle Wochentage (Mo-Fr) berechnen
+    const allWeekdays = calculateWorkdays(startDate, endDate);
+
+    // 2. Sets und Maps für schnelle Lookups erstellen
+    const holidayDaysSet = createHolidaysSet(holidays, startDate, endDate);
+    const vacationDaysSet = createVacationDaysSet(vacations, startDate, endDate);
+    const flexDaysSet = createFlexDaysSet(flexDates, startDate, endDate);
+    const vacationLookupMap = createVacationLookupMap(vacations); // O(1) Lookup Map
+
+    // 3. Feiertage von Werktagen abziehen (wie Wochenende behandeln)
+    const allWorkdays = allWeekdays.filter(date => {
+        const dateString = formatDateToString(date);
+        return !holidayDaysSet.has(dateString);
+    });
     const totalWorkdays = allWorkdays.length;
 
-    // Sets für schnelle Lookups erstellen
-    const vacationDaysSet = createVacationDaysSet(vacations, startDate, endDate);
-    const holidayDaysSet = createHolidaysSet(holidays, startDate, endDate);
-    const flexDaysSet = createFlexDaysSet(flexDates, startDate, endDate);
-
-    // Schulfreie Tage zählen (ohne Duplikate)
+    // 4. Schulfreie Tage = NUR Ferien + flexible Tage (Feiertage sind bereits aus Werktagen raus!)
     const nonSchoolDaysSet = new Set();
 
-    // Ferientage hinzufügen
-    vacationDaysSet.forEach(day => nonSchoolDaysSet.add(day));
-
-    // Feiertage hinzufügen (die nicht schon Ferientage sind)
-    holidayDaysSet.forEach(day => {
-        if (!vacationDaysSet.has(day)) {
+    // Ferientage hinzufügen (die nicht schon Feiertage sind, da diese ja bereits abgezogen wurden)
+    vacationDaysSet.forEach(day => {
+        if (!holidayDaysSet.has(day)) {
             nonSchoolDaysSet.add(day);
         }
     });
@@ -291,31 +297,40 @@ function calculateWorkingTime(params) {
         }
     });
 
+    // Debug-Logging
+    log.debug('=== ARBEITSZEIT-RECHNER DEBUG ===');
+    log.debug('Alle Wochentage (Mo-Fr):', allWeekdays.length);
+    log.debug('Feiertage (Werktage):', holidayDaysSet.size);
+    log.debug('Werktage NACH Abzug Feiertage:', totalWorkdays);
+    log.debug('Ferientage:', vacationDaysSet.size);
+    log.debug('Flexible Ferientage:', flexDaysSet.size);
+    log.debug('Feiertage-Liste:', Array.from(holidayDaysSet));
+
     // Anzahlen berechnen
     const totalNonSchoolDays = nonSchoolDaysSet.size;
     const totalSchoolDays = totalWorkdays - totalNonSchoolDays;
 
-    // Breakdown für Anzeige
-    const vacationCount = vacationDaysSet.size;
-    const holidayOnlyCount = Array.from(holidayDaysSet).filter(day => !vacationDaysSet.has(day)).length;
+    // Breakdown für Anzeige (Feiertage werden separat angezeigt)
+    const vacationCount = Array.from(vacationDaysSet).filter(day => !holidayDaysSet.has(day)).length;
+    const holidayCount = holidayDaysSet.size;
     const flexOnlyCount = Array.from(flexDaysSet).filter(day =>
         !vacationDaysSet.has(day) && !holidayDaysSet.has(day)
     ).length;
 
     // Gesetzlicher Urlaub
-    const legalVacationDays = 30;
+    const legalVacationDays = WORK_TIME_CONFIG.LEGAL_VACATION_DAYS;
 
     // Verbleibende freie Tage für Überstundenabbau
     const remainingFreeDays = Math.max(0, totalNonSchoolDays - legalVacationDays);
 
     // Wöchentliche Sollarbeitszeit (39h für 100% Vollzeit)
-    const weeklyTargetHours = 39 * (workPercentage / 100);
+    const weeklyTargetHours = WORK_TIME_CONFIG.WEEKLY_HOURS_FULL_TIME * (workPercentage / 100);
 
     // Jahressollstunden (Werktage ÷ 5 × Wochenstunden)
     const yearlyTargetHours = (totalWorkdays / 5) * weeklyTargetHours;
 
     // Tägliche Sollarbeitszeit (abhängig vom Arbeitszeitmodell)
-    const dailyTargetHours = 7.8 * (workPercentage / 100);
+    const dailyTargetHours = WORK_TIME_CONFIG.DAILY_HOURS_FULL_TIME * (workPercentage / 100);
 
     // Stunden, die durch freie Tage "vorgearbeitet" werden müssen
     // Bei Teilzeit zählt jeder freie Tag entsprechend weniger Stunden
@@ -332,11 +347,11 @@ function calculateWorkingTime(params) {
 
     // Detaillierte Tagesklassifikation für Kalenderansicht
     const dayClassification = classifyAllDays(
-        allWorkdays,
+        allWeekdays,  // Alle Wochentage inkl. Feiertage, damit diese im Kalender angezeigt werden
         vacationDaysSet,
         holidayDaysSet,
         flexDaysSet,
-        vacations,
+        vacationLookupMap,
         holidays
     );
 
@@ -363,10 +378,11 @@ function calculateWorkingTime(params) {
         },
         days: {
             totalWorkdays,
+            totalWeekdays: allWeekdays.length,
+            holidayCount: holidayCount,
             schoolDays: totalSchoolDays,
             nonSchoolDays: totalNonSchoolDays,
             vacationDays: vacationCount,
-            holidaysOnly: holidayOnlyCount,
             flexDaysOnly: flexOnlyCount,
             legalVacation: legalVacationDays,
             remainingFreeDays
@@ -386,15 +402,16 @@ function calculateWorkingTime(params) {
 
 /**
  * Klassifiziert jeden Tag für die Kalenderansicht
+ * OPTIMIERT: Verwendet Map für O(1) Lookups statt O(n²)
  * @param {Array<Date>} workdays - Alle Werktage
  * @param {Set} vacationDaysSet - Set der Ferientage
  * @param {Set} holidayDaysSet - Set der Feiertage
  * @param {Set} flexDaysSet - Set der flexiblen Ferientage
- * @param {Array} vacations - Feriendaten mit Namen
+ * @param {Map} vacationLookupMap - Map für schnelle Ferienperioden-Lookups
  * @param {Array} holidays - Feiertagsdaten mit Namen
  * @returns {Array<Object>} - Array mit Klassifikation für jeden Tag
  */
-function classifyAllDays(workdays, vacationDaysSet, holidayDaysSet, flexDaysSet, vacations, holidays) {
+function classifyAllDays(workdays, vacationDaysSet, holidayDaysSet, flexDaysSet, vacationLookupMap, holidays) {
     return workdays.map(date => {
         const dateString = formatDateToString(date);
 
@@ -414,10 +431,8 @@ function classifyAllDays(workdays, vacationDaysSet, holidayDaysSet, flexDaysSet,
         // Dies entspricht der Logik in der Hauptberechnung
         if (vacationDaysSet.has(dateString)) {
             type = 'vacation';
-            const vacation = vacations.find(v => {
-                const vDates = getDateRange(v.start, v.end);
-                return vDates.some(vd => formatDateToString(vd) === dateString);
-            });
+            // OPTIMIERT: O(1) Map-Lookup statt O(n²) find + getDateRange
+            const vacation = vacationLookupMap.get(dateString);
             name = vacation ? vacation.name : 'Ferien';
             // Wenn Feiertag in Ferien, ergänze den Namen
             if (isHoliday) {
@@ -477,7 +492,9 @@ function calculateMonthlyBreakdown(startDate, endDate, dayClassification, weekly
             return dayYear === monthYear && dayMonth === month;
         });
 
-        const workdays = daysInMonth.length;
+        // Werktage = Tage die KEINE Feiertage sind (Feiertage werden wie Wochenende behandelt)
+        // Wichtig: Auch Feiertage in Ferien müssen ausgeschlossen werden (haben type='vacation' aber isHoliday=true)
+        const workdays = daysInMonth.filter(d => !d.isHoliday).length;
 
         // Überspringe Monate ohne Werktage (sollte nicht vorkommen, aber Sicherheitscheck)
         if (workdays === 0) {
@@ -515,8 +532,6 @@ if (typeof module !== 'undefined' && module.exports) {
         calculateWorkingTime,
         getSchoolYearDates,
         processVacations,
-        processHolidays,
-        formatDateToString,
-        isWeekday
+        processHolidays
     };
 }
