@@ -11,7 +11,9 @@
 
 const API_CONFIG = {
     holidays: 'https://feiertage-api.de/api/',
-    vacations: 'https://schulferien-api.de/api/v1/'
+    vacations: 'https://schulferien-api.de/api/v1/',
+    minVacationYear: 2022,
+    maxVacationYear: 2028
 };
 
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Stunden in Millisekunden
@@ -49,8 +51,6 @@ function initializeElements() {
         // Planner elements
         plannerToggle: document.getElementById('togglePlanner'),
         plannerContent: document.getElementById('plannerContent'),
-        plannerWeeklyHours: document.getElementById('plannerWeeklyHours'),
-        plannerPercentage: document.getElementById('plannerPercentage'),
 
         // Planner inputs for each day
         monStart: document.getElementById('monStart'),
@@ -76,11 +76,11 @@ function initializeElements() {
 
         // Eingabefelder
         schoolYear: document.getElementById('schoolYear'),
+        weeklyHoursInput: document.getElementById('weeklyHoursInput'),
         workPercentage: document.getElementById('workPercentage'),
         flexDaysCount: document.getElementById('flexDaysCount'),
         flexDatesContainer: document.getElementById('flexDatesContainer'),
         loadDataBtn: document.getElementById('loadDataBtn'),
-        calculateParttimeBtn: document.getElementById('calculateParttimeBtn'),
 
         // Anzeige-Elemente
         loadingIndicator: document.getElementById('loadingIndicator'),
@@ -99,10 +99,11 @@ function initializeElements() {
 
         // Ergebnisfelder - Teilzeit
         parttimeResults: document.getElementById('parttimeResults'),
-        displayPercentage: document.getElementById('displayPercentage'),
         nonSchoolDays2: document.getElementById('nonSchoolDays2'),
+        nonSchoolDaysBreakdown2: document.getElementById('nonSchoolDaysBreakdown2'),
         remainingDays: document.getElementById('remainingDays'),
         dailyExtra: document.getElementById('dailyExtra'),
+        dailyHours: document.getElementById('dailyHours'),
         weeklyHours: document.getElementById('weeklyHours'),
         yearlyHours: document.getElementById('yearlyHours'),
 
@@ -113,10 +114,45 @@ function initializeElements() {
 }
 
 // ========================================
+// Schuljahr-Dropdown Generierung
+// ========================================
+
+/**
+ * Generiert die Schuljahr-Optionen dynamisch basierend auf API-Verfügbarkeit.
+ * Schuljahr YYYY/(YYYY+1) ist verfügbar wenn beide Jahre im API-Bereich liegen.
+ * Das aktuelle Schuljahr wird automatisch vorausgewählt.
+ */
+function populateSchoolYearDropdown() {
+    const select = document.getElementById('schoolYear');
+    select.innerHTML = '';
+
+    const minStart = API_CONFIG.minVacationYear;
+    const maxStart = API_CONFIG.maxVacationYear - 1;
+
+    // Aktuelles Schuljahr bestimmen: Aug-Dez → laufendes Jahr, Jan-Jul → Vorjahr
+    const now = new Date();
+    const currentStartYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+
+    for (let startYear = minStart; startYear <= maxStart; startYear++) {
+        const endYear = startYear + 1;
+        const option = document.createElement('option');
+        option.value = `${startYear}-${endYear}`;
+        option.textContent = `${startYear}/${endYear}`;
+
+        if (startYear === currentStartYear) {
+            option.selected = true;
+        }
+
+        select.appendChild(option);
+    }
+}
+
+// ========================================
 // Initialisierung
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    populateSchoolYearDropdown();
     initializeElements();
     setupEventListeners();
     updateFlexDatesInputs();
@@ -143,21 +179,56 @@ function setupEventListeners() {
     // Flex days count change - update inputs only
     elements.flexDaysCount.addEventListener('change', updateFlexDatesInputs);
 
-    // Button-triggered parttime calculation
-    elements.calculateParttimeBtn.addEventListener('click', handleCalculateParttime);
+    // Schuljahr-Wechsel - Flex-Daten neu berechnen
+    elements.schoolYear.addEventListener('change', updateFlexDatesInputs);
 
-    // Enter-Taste zum Laden/Berechnen
+    // Bidirektionale Synchronisierung: Stunden ↔ Prozent + automatische Neuberechnung
+    elements.weeklyHoursInput.addEventListener('input', syncHoursToPercentage);
+    elements.workPercentage.addEventListener('input', syncPercentageToHours);
+
+    // Enter-Taste zum Laden
     document.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            // Wenn Basisdaten noch nicht geladen, dann laden
-            if (elements.baseResults.style.display === 'none') {
-                handleLoadData();
-            } else {
-                // Sonst Teilzeit berechnen
-                handleCalculateParttime();
-            }
+            handleLoadData();
         }
     });
+}
+
+/**
+ * Berechnet die Standard-Flex-Daten für ein Schuljahr.
+ * @param {string} schoolYear - Schuljahr im Format "YYYY-YYYY"
+ * @returns {Array<string>} - Array mit YYYY-MM-DD Strings für die 4 Standard-Tage
+ */
+function getDefaultFlexDates(schoolYear) {
+    const [startYear, endYear] = schoolYear.split('-').map(Number);
+    const easter = getEasterDate(endYear);
+
+    // Tag 1: Freitag nach Fronleichnam (Fronleichnam = Ostern + 60, Freitag = +61)
+    const fridayAfterCorpusChristi = new Date(easter);
+    fridayAfterCorpusChristi.setDate(easter.getDate() + 61);
+
+    // Tag 2: Freitag nach Himmelfahrt (Himmelfahrt = Ostern + 39, Freitag = +40)
+    const fridayAfterAscension = new Date(easter);
+    fridayAfterAscension.setDate(easter.getDate() + 40);
+
+    // Tag 3: Erster Montag im Februar (Endjahr)
+    const firstMondayFeb = new Date(endYear, 1, 1); // 1. Februar
+    while (firstMondayFeb.getDay() !== 1) { // 1 = Montag
+        firstMondayFeb.setDate(firstMondayFeb.getDate() + 1);
+    }
+
+    // Tag 4: Letzter Schultag (Werktag Mo-Fr) im Oktober (Startjahr)
+    const lastWeekdayOct = new Date(startYear, 9, 31); // 31. Oktober
+    while (!isWeekday(lastWeekdayOct)) {
+        lastWeekdayOct.setDate(lastWeekdayOct.getDate() - 1);
+    }
+
+    return [
+        formatDateToString(fridayAfterCorpusChristi),
+        formatDateToString(fridayAfterAscension),
+        formatDateToString(firstMondayFeb),
+        formatDateToString(lastWeekdayOct)
+    ];
 }
 
 /**
@@ -171,6 +242,9 @@ function updateFlexDatesInputs() {
         return;
     }
 
+    const schoolYear = elements.schoolYear.value;
+    const defaults = getDefaultFlexDates(schoolYear);
+
     for (let i = 1; i <= count; i++) {
         const inputGroup = document.createElement('div');
         inputGroup.className = 'flex-date-input';
@@ -183,6 +257,10 @@ function updateFlexDatesInputs() {
         input.type = 'date';
         input.id = `flexDate${i}`;
         input.name = `flexDate${i}`;
+
+        if (i <= defaults.length) {
+            input.value = defaults[i - 1];
+        }
 
         inputGroup.appendChild(label);
         inputGroup.appendChild(input);
@@ -306,6 +384,42 @@ async function fetchVacations(year) {
 }
 
 /**
+ * Prüft ob erwartete Ferienperioden in den API-Daten fehlen.
+ * Für ein Schuljahr (Aug-Jul) werden erwartet:
+ * - Startjahr: Herbstferien, Weihnachtsferien
+ * - Endjahr: Osterferien
+ */
+function checkMissingVacations(vacationsStart, vacationsEnd, startYear, endYear) {
+    const warnings = [];
+    const namesStart = (vacationsStart || []).map(v => v.name);
+    const namesEnd = (vacationsEnd || []).map(v => v.name);
+
+    const expectedStart = [
+        { key: 'herbstferien', label: 'Herbstferien' },
+        { key: 'weihnachtsferien', label: 'Weihnachtsferien' }
+    ];
+    const expectedEnd = [
+        { key: 'osterferien', label: 'Osterferien' }
+    ];
+
+    for (const { key, label } of expectedStart) {
+        if (!namesStart.includes(key)) {
+            warnings.push(`${label} ${startYear}/${endYear}`);
+        }
+    }
+    for (const { key, label } of expectedEnd) {
+        if (!namesEnd.includes(key)) {
+            warnings.push(`${label} ${endYear}`);
+        }
+    }
+
+    if (warnings.length > 0) {
+        logScript.warn('Fehlende Ferienperioden:', warnings);
+    }
+    return warnings;
+}
+
+/**
  * Lädt alle benötigten Daten für ein Schuljahr
  * @param {string} schoolYear - Schuljahr (z.B. "2024-2025")
  * @returns {Promise<Object>} - Alle Daten
@@ -345,9 +459,13 @@ async function fetchAllData(schoolYear) {
         const allVacations = [...vacationsStart, ...vacationsEnd];
         logScript.debug('Anzahl Ferienperioden:', allVacations.length);
 
+        // Prüfe auf fehlende Ferienperioden
+        const warnings = checkMissingVacations(vacationsStart, vacationsEnd, startYear, endYear);
+
         return {
             holidays: allHolidays,
-            vacations: allVacations
+            vacations: allVacations,
+            warnings
         };
     } catch (error) {
         logScript.error('Error fetching all data:', error);
@@ -537,6 +655,30 @@ function calculateDailyHours(startTime, endTime, breakMinutes) {
 }
 
 /**
+ * Synchronisiert Stunden-Input → Prozent-Input
+ */
+function syncHoursToPercentage() {
+    const hours = parseFloat(elements.weeklyHoursInput.value);
+    if (hours > 0 && hours <= WORK_TIME_CONFIG.WEEKLY_HOURS_FULL_TIME) {
+        const percentage = (hours / WORK_TIME_CONFIG.WEEKLY_HOURS_FULL_TIME) * 100;
+        elements.workPercentage.value = percentage.toFixed(1);
+    }
+    handleCalculateParttime();
+}
+
+/**
+ * Synchronisiert Prozent-Input → Stunden-Input
+ */
+function syncPercentageToHours() {
+    const percentage = parseFloat(elements.workPercentage.value);
+    if (percentage > 0 && percentage <= 100) {
+        const hours = (percentage / 100) * WORK_TIME_CONFIG.WEEKLY_HOURS_FULL_TIME;
+        elements.weeklyHoursInput.value = hours.toFixed(1);
+    }
+    handleCalculateParttime();
+}
+
+/**
  * Updates all planner calculations
  */
 function updatePlannerCalculations() {
@@ -557,17 +699,15 @@ function updatePlannerCalculations() {
             : '-';
     });
 
-    // Calculate percentage (39h = 100%)
-    const percentage = (totalWeeklyHours / WORK_TIME_CONFIG.WEEKLY_HOURS_FULL_TIME) * 100;
-
-    // Update results
-    elements.plannerWeeklyHours.textContent = `${totalWeeklyHours.toFixed(2)}h`;
-    elements.plannerPercentage.textContent = `${percentage.toFixed(1)}%`;
-
-    // Auto-populate the percentage field
-    if (percentage > 0 && percentage <= 100) {
-        elements.workPercentage.value = percentage.toFixed(1);
+    // Beide Inputs aktualisieren
+    if (totalWeeklyHours > 0) {
+        const percentage = (totalWeeklyHours / WORK_TIME_CONFIG.WEEKLY_HOURS_FULL_TIME) * 100;
+        elements.weeklyHoursInput.value = totalWeeklyHours.toFixed(1);
+        if (percentage <= 100) {
+            elements.workPercentage.value = percentage.toFixed(1);
+        }
     }
+    handleCalculateParttime();
 }
 
 // ========================================
@@ -600,6 +740,15 @@ async function handleLoadData() {
             currentSchoolYear = schoolYear;
         }
 
+        // Warnung bei fehlenden Feriendaten anzeigen
+        const warningEl = document.getElementById('dataWarning');
+        if (cachedApiData.warnings && cachedApiData.warnings.length > 0) {
+            warningEl.textContent = `Achtung: Die Schulferien-API liefert keine Daten für: ${cachedApiData.warnings.join(', ')}. Die Berechnung ist daher unvollständig. Die fehlenden Daten könnten manuell über flexible Ferientage abgebildet werden.`;
+            warningEl.style.display = 'block';
+        } else {
+            warningEl.style.display = 'none';
+        }
+
         const holidays = cachedApiData.holidays;
         const vacations = processVacations(cachedApiData.vacations);
 
@@ -617,6 +766,9 @@ async function handleLoadData() {
 
         // Basisdaten-Bereich einblenden
         elements.baseResults.style.display = 'block';
+
+        // Teilzeit automatisch berechnen
+        handleCalculateParttime();
 
         showLoading(false);
 
@@ -640,7 +792,7 @@ function displayBaseResults(results) {
     elements.totalHolidays.textContent = results.days.holidayCount;
     elements.totalWorkdays.textContent = results.days.totalWorkdays;
     elements.schoolDays.textContent = results.days.schoolDays;
-    elements.nonSchoolDays.textContent = results.days.totalNonSchoolDays;
+    elements.nonSchoolDays.textContent = results.days.nonSchoolDays;
     elements.nonSchoolDaysBreakdown.textContent =
         `Ferien: ${results.days.vacationDays} | Flexible Tage: ${results.days.flexDaysOnly}`;
 
@@ -654,36 +806,29 @@ function displayBaseResults(results) {
 }
 
 /**
- * Handler für Button-triggered Teilzeit-Berechnung
+ * Berechnet und zeigt Teilzeit-Ergebnisse automatisch.
+ * Wird still übersprungen wenn noch keine Basisdaten geladen sind.
  */
 function handleCalculateParttime() {
+    if (!cachedApiData) return;
+
     const percentage = parseFloat(elements.workPercentage.value);
+    if (!(percentage > 0 && percentage <= 100)) return;
 
-    if (!cachedApiData) {
-        // Noch keine Basisdaten berechnet
-        alert('Bitte laden Sie zuerst die Basisdaten im Abschnitt "Schuljahr & Ferientage".');
-        return;
-    }
+    const schoolYear = elements.schoolYear.value;
+    const holidays = cachedApiData.holidays;
+    const vacations = processVacations(cachedApiData.vacations);
 
-    if (percentage > 0 && percentage <= 100) {
-        const schoolYear = elements.schoolYear.value;
-        const holidays = cachedApiData.holidays;
-        const vacations = processVacations(cachedApiData.vacations);
-
-        // Flexible Ferientage sammeln
-        const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
-        const flexDates = [];
-        for (let i = 1; i <= flexDaysCount; i++) {
-            const input = document.getElementById(`flexDate${i}`);
-            if (input && input.value) {
-                flexDates.push(input.value);
-            }
+    const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
+    const flexDates = [];
+    for (let i = 1; i <= flexDaysCount; i++) {
+        const input = document.getElementById(`flexDate${i}`);
+        if (input && input.value) {
+            flexDates.push(input.value);
         }
-
-        calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage);
-    } else {
-        alert('Bitte geben Sie einen gültigen Prozentsatz zwischen 1 und 100 ein.');
     }
+
+    calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage);
 }
 
 /**
@@ -698,30 +843,22 @@ function calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear,
         flexDates
     });
 
-    displayParttimeResults(parttimeResults, percentage);
+    displayParttimeResults(parttimeResults);
 }
 
 /**
  * Zeigt die Teilzeit-Endergebnisse an
  */
-function displayParttimeResults(results, percentage) {
-    // Überschrift aktualisieren
-    const percentageText = percentage === 100 ? '100% Vollzeit' : `${percentage.toFixed(1)}% Teilzeit`;
-
-    // Update heading - find the h3 element and update its content
-    const heading = elements.parttimeResults.querySelector('.section-header h3');
-    if (heading) {
-        heading.innerHTML = percentage === 100
-            ? '🎯 Ihre Arbeitszeit (100% Vollzeit)'
-            : `🎯 Ihre Arbeitszeit (<span id="displayPercentage">${percentage.toFixed(1)}</span>% Teilzeit)`;
-    }
-
+function displayParttimeResults(results) {
     // Stundenberechnung
-    elements.nonSchoolDays2.textContent = results.days.totalNonSchoolDays;
+    elements.nonSchoolDays2.textContent = results.days.nonSchoolDays;
+    elements.nonSchoolDaysBreakdown2.textContent = 
+        `Ferien: ${results.days.vacationDays} | Flexible Tage: ${results.days.flexDaysOnly}`;
     elements.remainingDays.textContent = results.days.remainingFreeDays;
     elements.dailyExtra.textContent = `${results.hours.dailyExtra}h`;
 
     // Endergebnisse
+    elements.dailyHours.textContent = `${results.hours.dailyDuringSchool}h`;
     elements.weeklyHours.textContent = `${results.workModel.weeklyHoursDuringSchool}h`;
     elements.yearlyHours.textContent = `${results.hours.yearlyTarget}h`;
 

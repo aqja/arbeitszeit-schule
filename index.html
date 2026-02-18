@@ -21,15 +21,14 @@
                 <div class="form-group">
                     <label for="schoolYear">Schuljahr:</label>
                     <select id="schoolYear" name="schoolYear">
-                        <option value="2025-2026" selected>2025/2026</option>
-                        <option value="2026-2027">2026/2027</option>
+                        <!-- Optionen werden dynamisch von script.js generiert -->
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label for="flexDaysCount">Anzahl flexible Ferientage:</label>
                     <input type="number" id="flexDaysCount" name="flexDaysCount"
-                           min="0" max="10" value="0" step="1">
+                           min="0" max="10" value="4" step="1">
                 </div>
 
                 <div id="flexDatesContainer" class="flex-dates-container">
@@ -43,10 +42,12 @@
                     <p>Daten werden geladen...</p>
                 </div>
 
+                <div id="dataWarning" class="warning-banner" style="display: none;"></div>
+
                 <!-- Basisdaten (100% Vollzeit) - erscheint nach Button-Click -->
                 <div id="baseResults" class="results-base" style="display: none;">
                     <div class="section-header">
-                        <h3>📊 Basisdaten (100% Vollzeit)</h3>
+                        <h3>📊 Basisdaten</h3>
                         <p class="section-description">
                             Diese Werte gelten bei 39 Stunden/Woche (100% Vollzeit)
                         </p>
@@ -70,22 +71,25 @@
                             <div class="result-card compact">
                                 <h5>Wochentage</h5>
                                 <p id="totalWeekdays" class="value">-</p>
-                                <span class="sublabel">Mo-Fr gesamt</span>
+                                <span class="sublabel">Summe aller Mo-Fr</span>
                             </div>
                             <div class="flow-connector minus"></div>
                             <div class="result-card compact">
                                 <h5>Feiertage</h5>
                                 <p id="totalHolidays" class="value">-</p>
+                                <span class="sublabel">Feiertage Mo-Fr</span>
                             </div>
                             <div class="flow-connector equals"></div>
                             <div class="result-card compact highlight">
-                                <h5>Arbeitstage</h5>
+                                <h5>theoretische Arbeitstage</h5>
                                 <p id="totalWorkdays" class="value">-</p>
+                                <span class="sublabel">Grundlage für AZN</span>
                             </div>
                             <div class="flow-connector arrow"></div>
                             <div class="result-card compact highlight-green">
                                 <h5>Schultage</h5>
                                 <p id="schoolDays" class="value">-</p>
+                                <span class="sublabel">tatsächliche Arbeitstage</span>
                             </div>
                             <div class="flow-connector plus"></div>
                             <div class="result-card compact highlight-blue">
@@ -103,12 +107,12 @@
                             <div class="result-card emphasis highlight">
                                 <h5>Wochenarbeitszeit</h5>
                                 <p id="baseWeeklyHours" class="value">39h</p>
-                                <span class="sublabel">bei 100% Vollzeit</span>
+                                <span class="sublabel">ohne Berücksichtigung notwendiger Mehrarbeit</span>
                             </div>
                             <div class="result-card emphasis highlight-blue">
                                 <h5>Jahresarbeitsstunden</h5>
                                 <p id="baseYearlyHours" class="value">-</p>
-                                <span class="sublabel">bei 100% Vollzeit</span>
+                                <span class="sublabel">über alle theoretischen Arbeitstage</span>
                             </div>
                         </div>
                     </div>
@@ -264,39 +268,26 @@
                         </div>
                     </div>
 
-                        <div class="planner-results">
-                            <div class="result-card highlight">
-                                <h4>Wöchentliche Arbeitszeit</h4>
-                                <p id="plannerWeeklyHours" class="value">0h</p>
-                            </div>
-                            <div class="result-card highlight-blue">
-                                <h4>Teilzeitmodell</h4>
-                                <p id="plannerPercentage" class="value">0%</p>
-                                <span class="sublabel">39h = 100%</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Teilzeitmodell (manuell) -->
-                <div class="form-group">
-                    <label for="workPercentage">Oder manuell eingeben:</label>
-                    <input type="number" id="workPercentage" name="workPercentage"
-                           min="1" max="100" value="100" step="0.5">
-                    <span class="help-text">Arbeitszeitmodell in % (100% = 39 Stunden/Woche)</span>
+                <div class="form-group form-group-inline">
+                    <div>
+                        <label for="weeklyHoursInput">Wöchentliche Arbeitszeit:</label>
+                        <input type="number" id="weeklyHoursInput" name="weeklyHoursInput"
+                               min="0.5" max="39" value="39" step="0.5">
+                        <span class="help-text">Stunden pro Woche</span>
+                    </div>
+                    <div>
+                        <label for="workPercentage">Teilzeitmodell:</label>
+                        <input type="number" id="workPercentage" name="workPercentage"
+                               min="1" max="100" value="100" step="0.5">
+                        <span class="help-text">in % (39h = 100%)</span>
+                    </div>
                 </div>
-
-                <button id="calculateParttimeBtn" class="btn-primary">Berechnen</button>
 
                 <!-- Teilzeit-Ergebnisse -->
                 <div id="parttimeResults" class="results-parttime" style="display: none;">
-                    <div class="section-header">
-                        <h3>🎯 Ihre Arbeitszeit (<span id="displayPercentage">-</span>% Teilzeit)</h3>
-                        <p class="section-description">
-                            Angepasste Werte basierend auf Ihrem Teilzeitmodell
-                        </p>
-                    </div>
-
                     <!-- Stunden-Berechnung Stage -->
                     <div class="calculation-stage">
                         <h4>⏱️ Stundenberechnung</h4>
@@ -304,15 +295,17 @@
                             <div class="result-card compact highlight-blue">
                                 <h5>Schulfreie Tage</h5>
                                 <p id="nonSchoolDays2" class="value">-</p>
+                                <span id="nonSchoolDaysBreakdown2" class="sublabel">-</span>
                             </div>
                             <div class="flow-connector minus"></div>
                             <div class="result-card compact">
                                 <h5>Urlaubstage</h5>
                                 <p class="value">30</p>
+                                <span class="sublabel">innerhalb der Ferien</span>
                             </div>
                             <div class="flow-connector equals"></div>
                             <div class="result-card compact highlight-orange">
-                                <h5>Verbleibende Ferientage</h5>
+                                <h5>Freie Tage ohne Urlaub</h5>
                                 <p id="remainingDays" class="value">-</p>
                                 <span class="sublabel">Überstundenabbau notwendig</span>
                             </div>
@@ -330,12 +323,17 @@
                         <h4>✅ Ihre Endergebnisse</h4>
                         <div class="flow-container">
                             <div class="result-card emphasis highlight-red">
-                                <h5>Ihre Wochenarbeitszeit</h5>
+                                <h5>Tägliche Arbeitszeit</h5>
+                                <p id="dailyHours" class="value">-</p>
+                                <span class="sublabel">durchschnittlich an Schultagen</span>
+                            </div>
+                            <div class="result-card emphasis highlight-red">
+                                <h5>Wochenarbeitszeit</h5>
                                 <p id="weeklyHours" class="value">-</p>
                                 <span class="sublabel">während der Schulzeit</span>
                             </div>
                             <div class="result-card emphasis highlight">
-                                <h5>Ihre Jahresarbeitsstunden</h5>
+                                <h5>Jahresarbeitsstunden</h5>
                                 <p id="yearlyHours" class="value">-</p>
                             </div>
                         </div>
