@@ -94,8 +94,6 @@ function initializeElements() {
         schoolDays: document.getElementById('schoolDays'),
         nonSchoolDays: document.getElementById('nonSchoolDays'),
         nonSchoolDaysBreakdown: document.getElementById('nonSchoolDaysBreakdown'),
-        baseWeeklyHours: document.getElementById('baseWeeklyHours'),
-        baseYearlyHours: document.getElementById('baseYearlyHours'),
 
         // Ergebnisfelder - Teilzeit
         parttimeResults: document.getElementById('parttimeResults'),
@@ -796,10 +794,6 @@ function displayBaseResults(results) {
     elements.nonSchoolDaysBreakdown.textContent =
         `Ferien: ${results.days.vacationDays} | Flexible Tage: ${results.days.flexDaysOnly}`;
 
-    // 100%-Arbeitszeit
-    elements.baseWeeklyHours.textContent = '39h'; // Immer 39h bei 100%
-    elements.baseYearlyHours.textContent = `${results.hours.yearlyTarget}h`;
-
     // Detailansichten
     displayCalendar(results.details.dayClassification);
     displayMonthlyTable(results.details.monthlyBreakdown, results.workModel);
@@ -863,7 +857,7 @@ function displayParttimeResults(results) {
     elements.yearlyHours.textContent = `${results.hours.yearlyTarget}h`;
 
     // Teilzeit-Bereich einblenden
-    elements.parttimeResults.style.display = 'block';
+    //elements.parttimeResults.style.display = 'block';
 }
 
 // ========================================

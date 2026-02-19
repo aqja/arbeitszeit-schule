@@ -46,53 +46,37 @@
 
                 <!-- Basisdaten (100% Vollzeit) - erscheint nach Button-Click -->
                 <div id="baseResults" class="results-base" style="display: none;">
-                    <div class="section-header">
-                        <h3>📊 Basisdaten</h3>
-                        <p class="section-description">
-                            Diese Werte gelten bei 39 Stunden/Woche (100% Vollzeit)
-                        </p>
-                    </div>
-
-                    <!-- Context Stage -->
-                    <div class="calculation-stage">
-                        <h4>📋 Berechnungsgrundlage</h4>
-                        <div class="flow-container">
-                            <div class="result-card compact">
-                                <h5>Zeitraum</h5>
-                                <p id="periodDisplay" class="value">-</p>
-                            </div>
-                        </div>
-                    </div>
+                    <h3>📊 Basisdaten (<span id="periodDisplay">-</span>)</h3>
 
                     <!-- Tagesverteilung Stage -->
                     <div class="calculation-stage">
-                        <h4>📅 Tagesverteilung</h4>
+                        <h4>Tagesverteilung</h4>
                         <div class="flow-container">
-                            <div class="result-card compact">
+                            <div class="result-card compact highlight">
                                 <h5>Wochentage</h5>
                                 <p id="totalWeekdays" class="value">-</p>
                                 <span class="sublabel">Summe aller Mo-Fr</span>
                             </div>
                             <div class="flow-connector minus"></div>
-                            <div class="result-card compact">
+                            <div class="result-card compact highlight-orange">
                                 <h5>Feiertage</h5>
                                 <p id="totalHolidays" class="value">-</p>
                                 <span class="sublabel">Feiertage Mo-Fr</span>
                             </div>
                             <div class="flow-connector equals"></div>
-                            <div class="result-card compact highlight">
+                            <div class="result-card compact highlight-green">
                                 <h5>theoretische Arbeitstage</h5>
                                 <p id="totalWorkdays" class="value">-</p>
                                 <span class="sublabel">Grundlage für AZN</span>
                             </div>
                             <div class="flow-connector arrow"></div>
-                            <div class="result-card compact highlight-green">
+                            <div class="result-card compact highlight">
                                 <h5>Schultage</h5>
                                 <p id="schoolDays" class="value">-</p>
                                 <span class="sublabel">tatsächliche Arbeitstage</span>
                             </div>
                             <div class="flow-connector plus"></div>
-                            <div class="result-card compact highlight-blue">
+                            <div class="result-card compact highlight">
                                 <h5>Schulfreie Tage</h5>
                                 <p id="nonSchoolDays" class="value">-</p>
                                 <span id="nonSchoolDaysBreakdown" class="sublabel">-</span>
@@ -100,31 +84,14 @@
                         </div>
                     </div>
 
-                    <!-- Jahres-/Wochenarbeitszeit bei 100% -->
-                    <div class="calculation-stage">
-                        <h4>⏱️ Arbeitszeit bei 100%</h4>
-                        <div class="flow-container">
-                            <div class="result-card emphasis highlight">
-                                <h5>Wochenarbeitszeit</h5>
-                                <p id="baseWeeklyHours" class="value">39h</p>
-                                <span class="sublabel">ohne Berücksichtigung notwendiger Mehrarbeit</span>
-                            </div>
-                            <div class="result-card emphasis highlight-blue">
-                                <h5>Jahresarbeitsstunden</h5>
-                                <p id="baseYearlyHours" class="value">-</p>
-                                <span class="sublabel">über alle theoretischen Arbeitstage</span>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Detaillierte Tagesübersicht -->
                     <div class="details-section">
-                        <h3>Detaillierte Übersicht</h3>
+                        <h4>Detaillierte Übersicht</h3>
                         <div class="legend">
                             <span class="legend-item"><span class="color-box school-day"></span> Schultag</span>
                             <span class="legend-item"><span class="color-box vacation-day"></span> Schulferien</span>
-                            <span class="legend-item"><span class="color-box holiday-day"></span> Feiertag (außerhalb Ferien)</span>
-                            <span class="legend-item"><span class="color-box flex-day"></span> Flexibler Ferientag (außerhalb Ferien)</span>
+                            <span class="legend-item"><span class="color-box holiday-day"></span> Feiertag</span>
+                            <span class="legend-item"><span class="color-box flex-day"></span> Flexibler Ferientag</span>
                             <span class="legend-item"><span class="color-box holiday-in-vacation"></span> Feiertag in Ferien</span>
                         </div>
                         <div id="calendarView" class="calendar-view">
@@ -286,84 +253,84 @@
                     </div>
                 </div>
 
-                <!-- Teilzeit-Ergebnisse -->
-                <div id="parttimeResults" class="results-parttime" style="display: none;">
-                    <!-- Stunden-Berechnung Stage -->
-                    <div class="calculation-stage">
-                        <h4>⏱️ Stundenberechnung</h4>
-                        <div class="flow-container">
-                            <div class="result-card compact highlight-blue">
-                                <h5>Schulfreie Tage</h5>
-                                <p id="nonSchoolDays2" class="value">-</p>
-                                <span id="nonSchoolDaysBreakdown2" class="sublabel">-</span>
-                            </div>
-                            <div class="flow-connector minus"></div>
-                            <div class="result-card compact">
-                                <h5>Urlaubstage</h5>
-                                <p class="value">30</p>
-                                <span class="sublabel">innerhalb der Ferien</span>
-                            </div>
-                            <div class="flow-connector equals"></div>
-                            <div class="result-card compact highlight-orange">
-                                <h5>Freie Tage ohne Urlaub</h5>
-                                <p id="remainingDays" class="value">-</p>
-                                <span class="sublabel">Überstundenabbau notwendig</span>
-                            </div>
-                            <div class="flow-connector arrow"></div>
-                            <div class="result-card compact highlight-red">
-                                <h5>Täglich notwendiger Überstundenaufbau</h5>
-                                <p id="dailyExtra" class="value">-</p>
-                                <span class="sublabel">mittlere Mehrarbeit während Schultagen</span>
-                            </div>
+                <!-- Stunden-Berechnung Stage -->
+                <div class="calculation-stage">
+                    <h3>⏱️ Stundenberechnung</h4>
+                    <div class="flow-container">
+                        <div class="result-card compact highlight-blue">
+                            <h5>Schulfreie Tage</h5>
+                            <p id="nonSchoolDays2" class="value">-</p>
+                            <span id="nonSchoolDaysBreakdown2" class="sublabel">-</span>
                         </div>
-                    </div>
-
-                    <!-- Endergebnis Stage -->
-                    <div class="calculation-stage">
-                        <h4>✅ Ihre Endergebnisse</h4>
-                        <div class="flow-container">
-                            <div class="result-card emphasis highlight-red">
-                                <h5>Tägliche Arbeitszeit</h5>
-                                <p id="dailyHours" class="value">-</p>
-                                <span class="sublabel">durchschnittlich an Schultagen</span>
-                            </div>
-                            <div class="result-card emphasis highlight-red">
-                                <h5>Wochenarbeitszeit</h5>
-                                <p id="weeklyHours" class="value">-</p>
-                                <span class="sublabel">während der Schulzeit</span>
-                            </div>
-                            <div class="result-card emphasis highlight">
-                                <h5>Jahresarbeitsstunden</h5>
-                                <p id="yearlyHours" class="value">-</p>
-                            </div>
+                        <div class="flow-connector minus"></div>
+                        <div class="result-card compact highlight-orange">
+                            <h5>Urlaubstage</h5>
+                            <p class="value">30</p>
+                            <span class="sublabel">innerhalb der Ferien</span>
                         </div>
-                    </div>
-
-                    <!-- Monatliche Übersicht -->
-                    <div class="monthly-section">
-                        <h3>Monatliche Übersicht</h3>
-                        <table id="monthlyTable" class="monthly-table">
-                            <thead>
-                                <tr>
-                                    <th>Monat</th>
-                                    <th>Werktage</th>
-                                    <th>davon Schultage</th>
-                                    <th>= Schulfrei (inkl. 30d Urlaub)</th>
-                                    <th>theoretische Sollstunden</th>
-                                    <th>Sollstunden mit Einarbeit Ferienausgleich, abzüglich Urlaubstage</th>
-                                </tr>
-                            </thead>
-                            <tbody id="monthlyTableBody">
-                                <!-- Wird dynamisch gefüllt -->
-                            </tbody>
-                        </table>
+                        <div class="flow-connector equals"></div>
+                        <div class="result-card compact highlight-green">
+                            <h5>Freie Tage ohne Urlaub</h5>
+                            <p id="remainingDays" class="value">-</p>
+                            <span class="sublabel">Überstundenabbau notwendig</span>
+                        </div>
+                        <div class="flow-connector arrow"></div>
+                        <div class="result-card compact highlight-red">
+                            <h5>Täglich notwendiger Überstundenaufbau</h5>
+                            <p id="dailyExtra" class="value">-</p>
+                            <span class="sublabel">mittlere Mehrarbeit während Schultagen</span>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Endergebnis Stage -->
+                <div class="calculation-stage">
+                    <h3>✅ Ihre Endergebnisse</h4>
+                    <div class="flow-container">
+                        <div class="result-card emphasis highlight-red">
+                            <h5>Tägliche Arbeitszeit</h5>
+                            <p id="dailyHours" class="value">-</p>
+                            <span class="sublabel">durchschnittlich an Schultagen</span>
+                        </div>
+                        <div class="result-card emphasis highlight-red">
+                            <h5>Wochenarbeitszeit</h5>
+                            <p id="weeklyHours" class="value">-</p>
+                            <span class="sublabel">während der Schulzeit</span>
+                        </div>
+                        <div class="result-card emphasis highlight">
+                            <h5>theoretische Jahresarbeitsstunden (Soll)</h5>
+                            <p id="yearlyHours" class="value">-</p>
+                            <span class="sublabel">vertragliche Arbeitszeit über alle theoretischen Werktage</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monatliche Übersicht -->
+                <div class="monthly-section">
+                    <h3>Monatliche Übersicht</h3>
+                    <p class="warning-banner">Achtung: Die Tabelle zeigt bisher noch Ergebnisse für Vollzeitstellen an!</p>
+                    <table id="monthlyTable" class="monthly-table">
+                        <thead>
+                            <tr>
+                                <th>Monat</th>
+                                <th>Werktage</th>
+                                <th>davon Schultage</th>
+                                <th>= Schulfrei</th>
+                                <th>theoretische Sollstunden</th>
+                                <th>Sollstunden mit Einarbeit Ferienausgleich, Urlaubsstunden abgezogen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTableBody">
+                            <!-- Wird dynamisch gefüllt -->
+                        </tbody>
+                    </table>
+                </div>
+
             </section>
         </main>
 
         <footer>
-            <p>&copy; 2025 Arbeitszeit-Rechner | Datenquellen:
+            <p>Datenquellen:
                 <a href="https://feiertage-api.de" target="_blank">Feiertage-API.de</a> |
                 <a href="https://schulferien-api.de" target="_blank">Schulferien-API.de</a>
             </p>
