@@ -7,6 +7,36 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="controls-bar">
+        <button id="resetDataBtn" class="btn-icon" title="Gespeicherte Eingaben löschen">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+        </button>
+        <button id="hourFormatBtn" class="btn-icon btn-icon-text" title="Stundenformat umschalten">4,5h</button>
+        <button id="darkModeBtn" class="btn-icon" title="Darkmode umschalten">
+            <svg id="iconMoon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <svg id="iconSun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 style="display:none">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+        </button>
+    </div>
     <div class="container">
         <header>
             <h1>Arbeitszeitrechner für Schulen in Hessen</h1>
@@ -46,11 +76,11 @@
 
                 <!-- Basisdaten (100% Vollzeit) - erscheint nach Button-Click -->
                 <div id="baseResults" class="results-base" style="display: none;">
-                    <h3>📊 Basisdaten (<span id="periodDisplay">-</span>)</h3>
+                    <h3>Basisdaten (<span id="periodDisplay">-</span>)</h3>
 
                     <!-- Tagesverteilung Stage -->
                     <div class="calculation-stage">
-                        <h4>Tagesverteilung</h4>
+                        <h4>Verteilung der Werk- und Feiertage im Schuljahr</h4>
                         <div class="flow-container">
                             <div class="result-card compact highlight">
                                 <h5>Wochentage</h5>
@@ -84,15 +114,17 @@
                         </div>
                     </div>
 
-                    <!-- Detaillierte Tagesübersicht -->
-                    <div class="details-section">
-                        <h4>Detaillierte Übersicht</h3>
+                    <!-- Kalenderansicht Schuljahr -->
+                    <div class="calendar-section">
+                        <h4>Kalenderübersicht des Schuljahres</h3>
                         <div class="legend">
                             <span class="legend-item"><span class="color-box school-day"></span> Schultag</span>
                             <span class="legend-item"><span class="color-box vacation-day"></span> Schulferien</span>
                             <span class="legend-item"><span class="color-box holiday-day"></span> Feiertag</span>
                             <span class="legend-item"><span class="color-box flex-day"></span> Flexibler Ferientag</span>
                             <span class="legend-item"><span class="color-box holiday-in-vacation"></span> Feiertag in Ferien</span>
+                            <span class="legend-item"><span class="color-box urlaub-day"></span> Urlaubstag</span>
+                            <span class="legend-item vacation-counter-item"><span id="vacationCounter">0/30 Urlaubstage</span></span>
                         </div>
                         <div id="calendarView" class="calendar-view">
                             <!-- Wird dynamisch gefüllt -->
@@ -255,7 +287,7 @@
 
                 <!-- Stunden-Berechnung Stage -->
                 <div class="calculation-stage">
-                    <h3>⏱️ Stundenberechnung</h4>
+                    <h3>Stundenberechnung</h4>
                     <div class="flow-container">
                         <div class="result-card compact highlight-blue">
                             <h5>Schulfreie Tage</h5>
@@ -266,7 +298,7 @@
                         <div class="result-card compact highlight-orange">
                             <h5>Urlaubstage</h5>
                             <p class="value">30</p>
-                            <span class="sublabel">innerhalb der Ferien</span>
+                            <span id="vacationDayHours" class="sublabel">á 7,8h pro Tag</span>
                         </div>
                         <div class="flow-connector equals"></div>
                         <div class="result-card compact highlight-green">
@@ -285,22 +317,39 @@
 
                 <!-- Endergebnis Stage -->
                 <div class="calculation-stage">
-                    <h3>✅ Ihre Endergebnisse</h4>
+                    <h3>Ihre Endergebnisse</h4>
+                    <div class="flow-container">
+                        <div class="result-card emphasis highlight">
+                            <h5>Theoretische Arbeitszeit Täglich</h5>
+                            <p id="dailyTargetHoursDisplay" class="value">-</p>
+                            <span class="sublabel">ohne Mehrarbeit für Gleitzeitausgleich</span>
+                        </div>
+                        <div class="result-card emphasis highlight">
+                            <h5>Theoretische Arbeitszeit Wöchentlich</h5>
+                            <p id="weeklyTargetHoursDisplay" class="value">-</p>
+                            <span class="sublabel">ohne Mehrarbeit für Gleitzeitausgleich</span>
+                        </div>
+                        <div class="result-card emphasis highlight">
+                            <h5>Theoretische Jahressollstunden</h5>
+                            <p id="yearlyHours" class="value">-</p>
+                            <span class="sublabel">vertragliche Arbeitszeit über alle Werktage</span>
+                        </div>
+                    </div>
                     <div class="flow-container">
                         <div class="result-card emphasis highlight-red">
-                            <h5>Tägliche Arbeitszeit</h5>
+                            <h5>Tägliche Arbeitszeit mit Mehrarbeit</h5>
                             <p id="dailyHours" class="value">-</p>
                             <span class="sublabel">durchschnittlich an Schultagen</span>
                         </div>
                         <div class="result-card emphasis highlight-red">
-                            <h5>Wochenarbeitszeit</h5>
+                            <h5>Wöchentliche Arbeitszeit mit Mehrarbeit</h5>
                             <p id="weeklyHours" class="value">-</p>
-                            <span class="sublabel">während der Schulzeit</span>
+                            <span class="sublabel">während einer 5-tägigen Schulwoche</span>
                         </div>
-                        <div class="result-card emphasis highlight">
-                            <h5>theoretische Jahresarbeitsstunden (Soll)</h5>
-                            <p id="yearlyHours" class="value">-</p>
-                            <span class="sublabel">vertragliche Arbeitszeit über alle theoretischen Werktage</span>
+                        <div class="result-card emphasis highlight-red">
+                            <h5>Tatsächliche Planstunden</h5>
+                            <p id="yearlyActualPlanHours" class="value">-</p>
+                            <span class="sublabel">ohne Urlaubsstunden</span>
                         </div>
                     </div>
                 </div>
@@ -308,16 +357,20 @@
                 <!-- Monatliche Übersicht -->
                 <div class="monthly-section">
                     <h3>Monatliche Übersicht</h3>
-                    <p class="warning-banner">Achtung: Die Tabelle zeigt bisher noch Ergebnisse für Vollzeitstellen an!</p>
+                    <div id="vacationWarning" class="warning-banner" style="display: none;"></div>
                     <table id="monthlyTable" class="monthly-table">
                         <thead>
                             <tr>
                                 <th>Monat</th>
                                 <th>Werktage</th>
-                                <th>davon Schultage</th>
-                                <th>= Schulfrei</th>
+                                <th>Schultage</th>
+                                <th>Schulfreie Tage</th>
+                                <th>davon Urlaubstage</th>
                                 <th>theoretische Sollstunden</th>
-                                <th>Sollstunden mit Einarbeit Ferienausgleich, Urlaubsstunden abgezogen</th>
+                                <th>= theoretische Arbeitsstunden</th>
+                                <th>+ Mehrarbeit für Ausgleich Gleitzeit</th>
+                                <th>= tatsächliche Planstunden</th>
+                                <th>+ Urlaub</th>
                             </tr>
                         </thead>
                         <tbody id="monthlyTableBody">
@@ -330,11 +383,94 @@
         </main>
 
         <footer>
-            <p>Datenquellen:
+            <p>
+                <a href="https://github.com/aqja/arbeitszeit-schule" target="_blank" class="footer-github">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                    Quellcode auf GitHub
+                </a>
+            </p>
+            <p>
+                Datenquellen:
                 <a href="https://feiertage-api.de" target="_blank">Feiertage-API.de</a> |
                 <a href="https://schulferien-api.de" target="_blank">Schulferien-API.de</a>
             </p>
+            <p>
+                <a href="#" id="impressumLink">Impressum &amp; Datenschutz</a>
+            </p>
         </footer>
+    </div>
+
+    <!-- Impressum & Datenschutz Modal -->
+    <div id="impressumModal" class="modal-overlay" style="display:none"
+         role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-box">
+            <button class="modal-close" id="impressumClose" aria-label="Schließen">&times;</button>
+
+            <h2 id="modalTitle">Impressum &amp; Datenschutz</h2>
+
+            <section class="modal-section">
+                <h3>Impressum</h3>
+                <p>Dieses Werkzeug ist ein privates, nicht-kommerzielles Hilfsmittel zur Berechnung
+                   von Arbeitszeiten an hessischen Schulen. Es besteht keine Pflicht zur Angabe
+                   eines Impressums gemäß § 5 TMG.</p>
+            </section>
+
+            <section class="modal-section">
+                <h3>Datenschutz</h3>
+                <p><strong>Kein Tracking.</strong> Diese Seite verwendet keine Analyse-Dienste,
+                   kein Tracking und keine Werbung. Es werden keine personenbezogenen Daten erhoben
+                   oder an Dritte weitergegeben.</p>
+
+                <h4>Lokale Datenspeicherung (localStorage)</h4>
+                <p>Um Eingaben sitzungsübergreifend zu speichern, werden Daten ausschließlich
+                   im <em>localStorage</em> des Browsers abgelegt. Dabei handelt es sich
+                   <strong>nicht um Cookies</strong> — die Daten verlassen den Browser nicht.</p>
+                <table class="modal-table">
+                    <thead>
+                        <tr><th>Schlüssel</th><th>Inhalt</th><th>Lebensdauer</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>arbeitszeit_formState</code></td>
+                            <td>Formulareingaben (Schuljahr, Arbeitszeiten, Planer)</td>
+                            <td>Bis zum manuellen Löschen</td>
+                        </tr>
+                        <tr>
+                            <td><code>arbeitszeit_vacationDays</code></td>
+                            <td>Ausgewählte Urlaubstage im Kalender</td>
+                            <td>Schuljahrgebunden</td>
+                        </tr>
+                        <tr>
+                            <td><code>arbeitszeit_hourFormat</code></td>
+                            <td>Stundenformat-Präferenz (Dezimal / HH:MM)</td>
+                            <td>Bis zum manuellen Löschen</td>
+                        </tr>
+                        <tr>
+                            <td><code>holidays_HE_{Jahr}</code></td>
+                            <td>Cache der Feiertage-API</td>
+                            <td>24 Stunden</td>
+                        </tr>
+                        <tr>
+                            <td><code>vacations_HE_{Jahr}</code></td>
+                            <td>Cache der Schulferien-API</td>
+                            <td>24 Stunden</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>Alle gespeicherten Daten können jederzeit über den Papierkorb-Button
+                   gelöscht werden oder über die Browsereinstellungen.</p>
+
+                <h4>Externe Dienste</h4>
+                <p>Beim Laden der Daten werden Anfragen an folgende externe Dienste gestellt:</p>
+                <ul>
+                    <li><a href="https://feiertage-api.de" target="_blank">feiertage-api.de</a> – Feiertage für Hessen</li>
+                    <li><a href="https://schulferien-api.de" target="_blank">schulferien-api.de</a> – Schulferienzeiten für Hessen</li>
+                </ul>
+                <p>Durch diese Anfragen wird die IP-Adresse an die jeweiligen Dienste übermittelt.
+                   Die Ergebnisse werden 24 Stunden im localStorage zwischengespeichert,
+                   um wiederholte Anfragen zu vermeiden.</p>
+            </section>
+        </div>
     </div>
 
     <script src="utils.js"></script>

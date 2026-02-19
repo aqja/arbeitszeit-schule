@@ -258,7 +258,8 @@ function calculateWorkingTime(params) {
         workPercentage,
         vacations,
         holidays,
-        flexDates
+        flexDates,
+        selectedVacationDays
     } = params;
 
     // Schuljahrdaten ermitteln
@@ -361,7 +362,9 @@ function calculateWorkingTime(params) {
         endDate,
         dayClassification,
         weeklyTargetHours,
-        dailyExtraHours
+        dailyExtraHours,
+        dailyTargetHours,
+        selectedVacationDays
     );
 
     return {
@@ -390,8 +393,10 @@ function calculateWorkingTime(params) {
         hours: {
             yearlyTarget: yearlyTargetHours.toFixed(0),
             dailyExtra: dailyExtraHours.toFixed(2),
+            dailyTarget: dailyTargetHours.toFixed(2),
             dailyDuringSchool: dailyHoursDuringSchool.toFixed(2),
-            hoursToCompensate: hoursToCompensate.toFixed(0)
+            hoursToCompensate: hoursToCompensate.toFixed(0),
+            yearlyActualPlan: (totalSchoolDays * dailyHoursDuringSchool).toFixed(0)
         },
         details: {
             dayClassification,
@@ -465,9 +470,11 @@ function classifyAllDays(workdays, vacationDaysSet, holidayDaysSet, flexDaysSet,
  * @param {Array} dayClassification - Klassifikation aller Tage
  * @param {number} weeklyTargetHours - Wöchentliche Sollstunden
  * @param {number} dailyExtraHours - Tägliche Mehrarbeit
+ * @param {number} dailyTargetHours - Tägliche Sollstunden (ohne Mehrarbeit)
+ * @param {Set<string>} selectedVacationDays - Ausgewählte Urlaubstage (YYYY-MM-DD)
  * @returns {Array<Object>} - Monatliche Statistiken
  */
-function calculateMonthlyBreakdown(startDate, endDate, dayClassification, weeklyTargetHours, dailyExtraHours) {
+function calculateMonthlyBreakdown(startDate, endDate, dayClassification, weeklyTargetHours, dailyExtraHours, dailyTargetHours, selectedVacationDays) {
     const months = [];
     const currentDate = new Date(startDate);
 
@@ -504,9 +511,15 @@ function calculateMonthlyBreakdown(startDate, endDate, dayClassification, weekly
         const schoolDays = daysInMonth.filter(d => d.type === 'school').length;
         const nonSchoolDays = workdays - schoolDays;
 
+        const urlaubstage = selectedVacationDays
+            ? daysInMonth.filter(d => selectedVacationDays.has(d.dateString) && !d.isHoliday).length
+            : 0;
+
         const targetHours = (workdays / 5) * weeklyTargetHours;
-        const actualHours = (schoolDays * ((weeklyTargetHours / 5) + dailyExtraHours)) +
-                           (nonSchoolDays * 0); // An schulfreien Tagen wird nicht gearbeitet
+        const theoreticalWorkHours = schoolDays * (weeklyTargetHours / 5);
+        const extraHours = schoolDays * dailyExtraHours;
+        const actualPlanHours = theoreticalWorkHours + extraHours;
+        const vacationHours = urlaubstage * (dailyTargetHours || weeklyTargetHours / 5);
 
         months.push({
             name: getMonthName(monthIndex),
@@ -514,8 +527,12 @@ function calculateMonthlyBreakdown(startDate, endDate, dayClassification, weekly
             workdays,
             schoolDays,
             nonSchoolDays,
+            urlaubstage,
             targetHours: targetHours.toFixed(1),
-            actualHours: actualHours.toFixed(1)
+            theoreticalWorkHours: theoreticalWorkHours.toFixed(1),
+            extraHours: extraHours.toFixed(1),
+            actualPlanHours: actualPlanHours.toFixed(1),
+            vacationHours: vacationHours.toFixed(1)
         });
     });
 

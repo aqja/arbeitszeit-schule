@@ -131,6 +131,30 @@ function getEasterDate(year) {
 }
 
 // ========================================
+// Stundenformatierung
+// ========================================
+
+/**
+ * Formatiert einen Dezimalstundenwert als Zeichenkette.
+ * @param {number|string} value - Stundenwert (z.B. 7.8 oder "7.80")
+ * @param {'decimal'|'hhmm'} format - Ausgabeformat
+ * @returns {string} - Formatierter Wert (z.B. "7,8h" oder "7:48")
+ */
+function formatHours(value, format) {
+    const h = parseFloat(value);
+    if (isNaN(h)) return '-';
+    if (format === 'hhmm') {
+        const totalMins = Math.round(h * 60);
+        const hours = Math.floor(totalMins / 60);
+        const mins = totalMins % 60;
+        return `${hours}:${String(mins).padStart(2, '0')}`;
+    }
+    // Dezimal mit deutschem Komma, ohne abschließende Nullen
+    const str = h.toFixed(2).replace('.', ',').replace(/,?0+$/, '');
+    return str + 'h';
+}
+
+// ========================================
 // Export (für Browser-Verwendung)
 // ========================================
 
@@ -144,6 +168,7 @@ if (typeof module !== 'undefined' && module.exports) {
         isSameDay,
         isDateInRange,
         getDateRange,
-        getEasterDate
+        getEasterDate,
+        formatHours
     };
 }

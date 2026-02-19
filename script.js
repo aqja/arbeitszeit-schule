@@ -31,6 +31,53 @@ let cachedApiData = null;
 let currentSchoolYear = null;
 
 /**
+ * Ausgewählte Urlaubstage (vom Nutzer im Kalender angeklickt)
+ */
+let selectedVacationDays = new Set(); // Set<"YYYY-MM-DD">
+const MAX_VACATION_DAYS = 30;
+
+/**
+ * localStorage-Wrapper mit In-Memory-Fallback.
+ * Falls localStorage nicht verfügbar ist (z.B. deaktivierte Cookies/Webseitendaten),
+ * werden alle Daten nur für die aktuelle Sitzung im Arbeitsspeicher gehalten.
+ */
+const storage = (() => {
+    const mem = {};
+    let available = true;
+    try {
+        localStorage.setItem('_az_test', '1');
+        localStorage.removeItem('_az_test');
+    } catch (_) {
+        available = false;
+    }
+    return {
+        available,
+        getItem: k => {
+            if (available) try { return localStorage.getItem(k); } catch (_) {}
+            return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null;
+        },
+        setItem: (k, v) => {
+            if (available) try { localStorage.setItem(k, v); return; } catch (_) {}
+            mem[k] = String(v);
+        },
+        removeItem: k => {
+            if (available) try { localStorage.removeItem(k); return; } catch (_) {}
+            delete mem[k];
+        }
+    };
+})();
+
+/**
+ * Stundenformat ('decimal' = "4,5h" | 'hhmm' = "4:30")
+ */
+let hourFormat = storage.getItem('arbeitszeit_hourFormat') || 'decimal';
+
+/**
+ * Darkmode-Status
+ */
+let isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+/**
  * Strukturiertes Logging-System
  */
 const logScript = {
@@ -105,6 +152,13 @@ function initializeElements() {
         weeklyHours: document.getElementById('weeklyHours'),
         yearlyHours: document.getElementById('yearlyHours'),
 
+        // Endergebnis-Kacheln ohne Mehrarbeit
+        dailyTargetHoursDisplay: document.getElementById('dailyTargetHoursDisplay'),
+        weeklyTargetHoursDisplay: document.getElementById('weeklyTargetHoursDisplay'),
+
+        // Endergebnis-Kacheln mit Mehrarbeit
+        yearlyActualPlanHours: document.getElementById('yearlyActualPlanHours'),
+
         // Detail-Ansichten
         calendarView: document.getElementById('calendarView'),
         monthlyTableBody: document.getElementById('monthlyTableBody')
@@ -152,43 +206,189 @@ function populateSchoolYearDropdown() {
 document.addEventListener('DOMContentLoaded', () => {
     populateSchoolYearDropdown();
     initializeElements();
+    applyTheme();
+    applyHourFormat();
+    loadFormState();
     setupEventListeners();
-    updateFlexDatesInputs();
+    handleLoadData();
+    if (!storage.available) {
+        const btn = document.getElementById('resetDataBtn');
+        btn.disabled = true;
+        btn.title = 'Datenspeicherung deaktiviert – Aktivieren Sie Website-Daten in den Browser-Einstellungen';
+    }
 });
 
+// ========================================
+// Theme & Stundenformat
+// ========================================
+
 /**
- * Richtet alle Event-Listener ein
+ * Wendet das aktuelle Theme an und aktualisiert das Icon
  */
+function applyTheme() {
+    if (isDarkMode) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('iconMoon').style.display = 'none';
+        document.getElementById('iconSun').style.display = '';
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.getElementById('iconMoon').style.display = '';
+        document.getElementById('iconSun').style.display = 'none';
+    }
+}
+
+/**
+ * Aktualisiert den Format-Button und löst Neudarstellung aus
+ */
+function applyHourFormat() {
+    const btn = document.getElementById('hourFormatBtn');
+    btn.textContent = hourFormat === 'decimal' ? '4,5h' : '4:30';
+    if (cachedApiData) handleCalculateParttime();
+}
+
+// ========================================
+// Formular-Persistenz
+// ========================================
+
+/**
+ * Speichert alle Formulareingaben im localStorage
+ */
+function saveFormState() {
+    const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
+    const flexDates = [];
+    for (let i = 1; i <= flexDaysCount; i++) {
+        const inp = document.getElementById(`flexDate${i}`);
+        flexDates.push(inp ? inp.value : '');
+    }
+    const state = {
+        schoolYear: elements.schoolYear.value,
+        flexDaysCount: elements.flexDaysCount.value,
+        flexDates,
+        weeklyHoursInput: elements.weeklyHoursInput.value,
+        workPercentage: elements.workPercentage.value,
+        planner: {
+            monStart: elements.monStart.value, monEnd: elements.monEnd.value, monBreak: elements.monBreak.value,
+            tueStart: elements.tueStart.value, tueEnd: elements.tueEnd.value, tueBreak: elements.tueBreak.value,
+            wedStart: elements.wedStart.value, wedEnd: elements.wedEnd.value, wedBreak: elements.wedBreak.value,
+            thuStart: elements.thuStart.value, thuEnd: elements.thuEnd.value, thuBreak: elements.thuBreak.value,
+            friStart: elements.friStart.value, friEnd: elements.friEnd.value, friBreak: elements.friBreak.value,
+        }
+    };
+    storage.setItem('arbeitszeit_formState', JSON.stringify(state));
+}
+
+/**
+ * Lädt gespeicherte Formulareingaben aus dem localStorage
+ */
+function loadFormState() {
+    const raw = storage.getItem('arbeitszeit_formState');
+    if (!raw) {
+        updateFlexDatesInputs(); // Kein gespeicherter State → Defaults anlegen
+        return;
+    }
+    try {
+        const state = JSON.parse(raw);
+        if (state.schoolYear) elements.schoolYear.value = state.schoolYear;
+        if (state.flexDaysCount !== undefined) elements.flexDaysCount.value = state.flexDaysCount;
+        updateFlexDatesInputs(); // Erstellt Flex-Inputs mit Defaults
+        // Gespeicherte Flex-Daten überschreiben
+        (state.flexDates || []).forEach((val, i) => {
+            const inp = document.getElementById(`flexDate${i + 1}`);
+            if (inp && val) inp.value = val;
+        });
+        if (state.weeklyHoursInput !== undefined) elements.weeklyHoursInput.value = state.weeklyHoursInput;
+        if (state.workPercentage !== undefined) elements.workPercentage.value = state.workPercentage;
+        const p = state.planner || {};
+        ['mon', 'tue', 'wed', 'thu', 'fri'].forEach(day => {
+            ['Start', 'End', 'Break'].forEach(field => {
+                const key = `${day}${field}`;
+                if (p[key] !== undefined) elements[key].value = p[key];
+            });
+        });
+    } catch (e) {
+        logScript.warn('loadFormState: Fehler beim Lesen des gespeicherten Zustands', e);
+    }
+}
+
+/**
+ * Setzt alle Eingaben auf Standardwerte zurück und löscht den localStorage-State
+ */
+function resetAllData() {
+    if (!confirm('Alle gespeicherten Eingaben löschen und auf Standardwerte zurücksetzen?')) return;
+    storage.removeItem('arbeitszeit_formState');
+    storage.removeItem('arbeitszeit_vacationDays');
+    selectedVacationDays = new Set();
+    updateVacationCounter();
+    elements.flexDaysCount.value = '4';
+    elements.weeklyHoursInput.value = '39';
+    elements.workPercentage.value = '100';
+    ['mon', 'tue', 'wed', 'thu', 'fri'].forEach(day => {
+        elements[`${day}Start`].value = '';
+        elements[`${day}End`].value = '';
+        elements[`${day}Break`].value = '30';
+    });
+    updateFlexDatesInputs();
+    handleLoadData();
+}
+
 function setupEventListeners() {
+    // Header-Controls
+    document.getElementById('resetDataBtn').addEventListener('click', resetAllData);
+    document.getElementById('hourFormatBtn').addEventListener('click', () => {
+        hourFormat = hourFormat === 'decimal' ? 'hhmm' : 'decimal';
+        storage.setItem('arbeitszeit_hourFormat', hourFormat);
+        applyHourFormat();
+    });
+    document.getElementById('darkModeBtn').addEventListener('click', () => {
+        isDarkMode = !isDarkMode;
+        applyTheme();
+    });
+
     // Planner toggle
     elements.plannerToggle.addEventListener('click', togglePlanner);
 
-    // Planner inputs - calculate on change
+    // Planner inputs - calculate on change + save
     const weekdays = ['mon', 'tue', 'wed', 'thu', 'fri'];
     weekdays.forEach(day => {
-        elements[`${day}Start`].addEventListener('change', updatePlannerCalculations);
-        elements[`${day}End`].addEventListener('change', updatePlannerCalculations);
-        elements[`${day}Break`].addEventListener('input', updatePlannerCalculations);
+        elements[`${day}Start`].addEventListener('change', () => { updatePlannerCalculations(); saveFormState(); });
+        elements[`${day}End`].addEventListener('change', () => { updatePlannerCalculations(); saveFormState(); });
+        elements[`${day}Break`].addEventListener('input', () => { updatePlannerCalculations(); saveFormState(); });
     });
 
     // Button-triggered data loading
     elements.loadDataBtn.addEventListener('click', handleLoadData);
 
-    // Flex days count change - update inputs only
-    elements.flexDaysCount.addEventListener('change', updateFlexDatesInputs);
+    // Flex days count change - update inputs only + save
+    elements.flexDaysCount.addEventListener('change', () => { updateFlexDatesInputs(); saveFormState(); });
 
-    // Schuljahr-Wechsel - Flex-Daten neu berechnen
-    elements.schoolYear.addEventListener('change', updateFlexDatesInputs);
+    // Schuljahr-Wechsel - Flex-Daten neu berechnen + save
+    elements.schoolYear.addEventListener('change', () => { updateFlexDatesInputs(); saveFormState(); });
 
-    // Bidirektionale Synchronisierung: Stunden ↔ Prozent + automatische Neuberechnung
-    elements.weeklyHoursInput.addEventListener('input', syncHoursToPercentage);
-    elements.workPercentage.addEventListener('input', syncPercentageToHours);
+    // Bidirektionale Synchronisierung: Stunden ↔ Prozent + automatische Neuberechnung + save
+    elements.weeklyHoursInput.addEventListener('input', () => { syncHoursToPercentage(); saveFormState(); });
+    elements.workPercentage.addEventListener('input', () => { syncPercentageToHours(); saveFormState(); });
 
     // Enter-Taste zum Laden
     document.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             handleLoadData();
         }
+    });
+
+    // Impressum Modal
+    const impressumModal = document.getElementById('impressumModal');
+    document.getElementById('impressumLink').addEventListener('click', e => {
+        e.preventDefault();
+        impressumModal.style.display = 'flex';
+    });
+    document.getElementById('impressumClose').addEventListener('click', () => {
+        impressumModal.style.display = 'none';
+    });
+    impressumModal.addEventListener('click', e => {
+        if (e.target === impressumModal) impressumModal.style.display = 'none';
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') impressumModal.style.display = 'none';
     });
 }
 
@@ -260,6 +460,7 @@ function updateFlexDatesInputs() {
             input.value = defaults[i - 1];
         }
 
+        input.addEventListener('change', saveFormState);
         inputGroup.appendChild(label);
         inputGroup.appendChild(input);
         elements.flexDatesContainer.appendChild(inputGroup);
@@ -277,7 +478,7 @@ function updateFlexDatesInputs() {
  */
 function getFromCache(key) {
     try {
-        const cached = localStorage.getItem(key);
+        const cached = storage.getItem(key);
         if (!cached) return null;
 
         const { data, timestamp } = JSON.parse(cached);
@@ -288,7 +489,7 @@ function getFromCache(key) {
             return data;
         } else {
             logScript.debug(`Cache expired for ${key}`);
-            localStorage.removeItem(key);
+            storage.removeItem(key);
             return null;
         }
     } catch (error) {
@@ -308,7 +509,7 @@ function saveToCache(key, data) {
             data,
             timestamp: Date.now()
         };
-        localStorage.setItem(key, JSON.stringify(cacheObject));
+        storage.setItem(key, JSON.stringify(cacheObject));
         logScript.debug(`Cached data for ${key}`);
     } catch (error) {
         logScript.error('Cache write error:', error);
@@ -484,6 +685,23 @@ function showLoading(show) {
 }
 
 /**
+ * Aktualisiert den Urlaubstage-Zähler in der Legende
+ */
+function updateVacationCounter() {
+    const counter = document.getElementById('vacationCounter');
+    if (counter) {
+        counter.textContent = `${selectedVacationDays.size}/${MAX_VACATION_DAYS} Urlaubstage`;
+    }
+}
+
+/**
+ * Löst eine Aktualisierung der monatlichen Tabelle aus
+ */
+function updateMonthlyTable() {
+    handleCalculateParttime();
+}
+
+/**
  * Zeigt die Kalenderübersicht an
  * @param {Array} dayClassification - Klassifikation aller Tage
  */
@@ -538,8 +756,36 @@ function displayCalendar(dayClassification) {
                 classes.push('has-flex');
             }
 
+            // Urlaubstag-Auswahl: Ferien- und Flex-Tage sind anklickbar
+            const isClickable = (day.type === 'vacation' || day.type === 'flex') && !day.isHoliday;
+            if (isClickable) {
+                classes.push('clickable-vacation');
+                if (selectedVacationDays.has(day.dateString)) {
+                    classes.push('urlaub');
+                }
+            }
+
             dayIndicator.className = classes.join(' ');
             dayIndicator.title = `${formatDateToString(day.date)}: ${day.name}`;
+
+            if (isClickable) {
+                dayIndicator.addEventListener('click', () => {
+                    if (selectedVacationDays.has(day.dateString)) {
+                        selectedVacationDays.delete(day.dateString);
+                        dayIndicator.classList.remove('urlaub');
+                    } else if (selectedVacationDays.size < MAX_VACATION_DAYS) {
+                        selectedVacationDays.add(day.dateString);
+                        dayIndicator.classList.add('urlaub');
+                    }
+                    updateVacationCounter();
+                    updateMonthlyTable();
+                    storage.setItem('arbeitszeit_vacationDays', JSON.stringify({
+                        schoolYear: currentSchoolYear,
+                        days: Array.from(selectedVacationDays)
+                    }));
+                });
+            }
+
             monthColumn.appendChild(dayIndicator);
         });
 
@@ -550,16 +796,28 @@ function displayCalendar(dayClassification) {
 /**
  * Zeigt die monatliche Tabelle an
  * @param {Array} monthlyBreakdown - Monatliche Statistiken
- * @param {Object} workModel - Arbeitszeitmodell
  */
-function displayMonthlyTable(monthlyBreakdown, workModel) {
+function displayMonthlyTable(monthlyBreakdown) {
+    const vacationWarning = document.getElementById('vacationWarning');
+    const remaining = MAX_VACATION_DAYS - selectedVacationDays.size;
+    if (remaining > 0) {
+        vacationWarning.textContent = `Hinweis: Es wurden erst ${selectedVacationDays.size} von ${MAX_VACATION_DAYS} Urlaubstagen im Kalender ausgewählt. Noch ${remaining} Tag${remaining === 1 ? '' : 'e'} ausstehend.`;
+        vacationWarning.style.display = '';
+    } else {
+        vacationWarning.style.display = 'none';
+    }
+
     elements.monthlyTableBody.innerHTML = '';
 
     let totalWorkdays = 0;
     let totalSchoolDays = 0;
     let totalNonSchoolDays = 0;
+    let totalUrlaubstage = 0;
     let totalTargetHours = 0;
-    let totalActualHours = 0;
+    let totalTheoreticalWorkHours = 0;
+    let totalExtraHours = 0;
+    let totalActualPlanHours = 0;
+    let totalVacationHours = 0;
 
     monthlyBreakdown.forEach(month => {
         const row = document.createElement('tr');
@@ -569,18 +827,25 @@ function displayMonthlyTable(monthlyBreakdown, workModel) {
             <td>${month.workdays}</td>
             <td>${month.schoolDays}</td>
             <td>${month.nonSchoolDays}</td>
-            <td>${month.targetHours}h</td>
-            <td><strong>${month.actualHours}h</strong></td>
+            <td>${month.urlaubstage}</td>
+            <td>${formatHours(month.targetHours, hourFormat)}</td>
+            <td>${formatHours(month.theoreticalWorkHours, hourFormat)}</td>
+            <td>${formatHours(month.extraHours, hourFormat)}</td>
+            <td>${formatHours(month.actualPlanHours, hourFormat)}</td>
+            <td>${formatHours(month.vacationHours, hourFormat)}</td>
         `;
 
         elements.monthlyTableBody.appendChild(row);
 
-        // Summen berechnen
         totalWorkdays += month.workdays;
         totalSchoolDays += month.schoolDays;
         totalNonSchoolDays += month.nonSchoolDays;
+        totalUrlaubstage += month.urlaubstage;
         totalTargetHours += parseFloat(month.targetHours);
-        totalActualHours += parseFloat(month.actualHours);
+        totalTheoreticalWorkHours += parseFloat(month.theoreticalWorkHours);
+        totalExtraHours += parseFloat(month.extraHours);
+        totalActualPlanHours += parseFloat(month.actualPlanHours);
+        totalVacationHours += parseFloat(month.vacationHours);
     });
 
     // Summenzeile hinzufügen
@@ -592,8 +857,12 @@ function displayMonthlyTable(monthlyBreakdown, workModel) {
         <td>${totalWorkdays}</td>
         <td>${totalSchoolDays}</td>
         <td>${totalNonSchoolDays}</td>
-        <td>${totalTargetHours.toFixed(1)}h</td>
-        <td>${totalActualHours.toFixed(1)}h</td>
+        <td>${totalUrlaubstage}</td>
+        <td>${formatHours(totalTargetHours, hourFormat)}</td>
+        <td>${formatHours(totalTheoreticalWorkHours, hourFormat)}</td>
+        <td>${formatHours(totalExtraHours, hourFormat)}</td>
+        <td>${formatHours(totalActualPlanHours, hourFormat)}</td>
+        <td>${formatHours(totalVacationHours, hourFormat)}</td>
     `;
     elements.monthlyTableBody.appendChild(totalRow);
 }
@@ -693,7 +962,7 @@ function updatePlannerCalculations() {
 
         // Update daily hours display
         elements[`${day}Hours`].textContent = dailyHours > 0
-            ? `${dailyHours.toFixed(2)}h`
+            ? formatHours(dailyHours, hourFormat)
             : '-';
     });
 
@@ -732,10 +1001,24 @@ async function handleLoadData() {
         // Zeige Ladeanzeige
         showLoading(true);
 
-        // API-Daten laden (mit Caching)
+        // API-Daten laden (mit Caching); Urlaubstag-Auswahl bei Schuljahreswechsel zurücksetzen
         if (!cachedApiData || currentSchoolYear !== schoolYear) {
             cachedApiData = await fetchAllData(schoolYear);
             currentSchoolYear = schoolYear;
+            selectedVacationDays = new Set();
+            // Gespeicherte Urlaubstage für dieses Schuljahr wiederherstellen
+            try {
+                const savedVac = storage.getItem('arbeitszeit_vacationDays');
+                if (savedVac) {
+                    const { schoolYear: sy, days } = JSON.parse(savedVac);
+                    if (sy === schoolYear && Array.isArray(days)) {
+                        selectedVacationDays = new Set(days);
+                    }
+                }
+            } catch (e) {
+                logScript.warn('handleLoadData: Fehler beim Lesen der gespeicherten Urlaubstage', e);
+            }
+            updateVacationCounter();
         }
 
         // Warnung bei fehlenden Feriendaten anzeigen
@@ -796,7 +1079,6 @@ function displayBaseResults(results) {
 
     // Detailansichten
     displayCalendar(results.details.dayClassification);
-    displayMonthlyTable(results.details.monthlyBreakdown, results.workModel);
 }
 
 /**
@@ -822,19 +1104,20 @@ function handleCalculateParttime() {
         }
     }
 
-    calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage);
+    calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage, selectedVacationDays);
 }
 
 /**
  * Berechnet und zeigt Teilzeit-Ergebnisse
  */
-function calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage) {
+function calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage, vacationDays) {
     const parttimeResults = calculateWorkingTime({
         schoolYear,
         workPercentage: percentage,
         vacations,
         holidays,
-        flexDates
+        flexDates,
+        selectedVacationDays: vacationDays
     });
 
     displayParttimeResults(parttimeResults);
@@ -846,18 +1129,24 @@ function calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear,
 function displayParttimeResults(results) {
     // Stundenberechnung
     elements.nonSchoolDays2.textContent = results.days.nonSchoolDays;
-    elements.nonSchoolDaysBreakdown2.textContent = 
+    elements.nonSchoolDaysBreakdown2.textContent =
         `Ferien: ${results.days.vacationDays} | Flexible Tage: ${results.days.flexDaysOnly}`;
     elements.remainingDays.textContent = results.days.remainingFreeDays;
-    elements.dailyExtra.textContent = `${results.hours.dailyExtra}h`;
+    elements.dailyExtra.textContent = formatHours(results.hours.dailyExtra, hourFormat);
+    document.getElementById('vacationDayHours').textContent = `á ${formatHours(results.hours.dailyTarget, hourFormat)} pro Tag`;
 
-    // Endergebnisse
-    elements.dailyHours.textContent = `${results.hours.dailyDuringSchool}h`;
-    elements.weeklyHours.textContent = `${results.workModel.weeklyHoursDuringSchool}h`;
-    elements.yearlyHours.textContent = `${results.hours.yearlyTarget}h`;
+    // Endergebnisse ohne Mehrarbeit (blau)
+    elements.dailyTargetHoursDisplay.textContent = formatHours(results.hours.dailyTarget, hourFormat);
+    elements.weeklyTargetHoursDisplay.textContent = formatHours(results.workModel.weeklyTargetHours, hourFormat);
+    elements.yearlyHours.textContent = formatHours(results.hours.yearlyTarget, hourFormat);
 
-    // Teilzeit-Bereich einblenden
-    //elements.parttimeResults.style.display = 'block';
+    // Endergebnisse mit Mehrarbeit (rot)
+    elements.dailyHours.textContent = formatHours(results.hours.dailyDuringSchool, hourFormat);
+    elements.weeklyHours.textContent = formatHours(results.workModel.weeklyHoursDuringSchool, hourFormat);
+    elements.yearlyActualPlanHours.textContent = formatHours(results.hours.yearlyActualPlan, hourFormat);
+
+    // Monatliche Tabelle mit Teilzeit-Daten befüllen
+    displayMonthlyTable(results.details.monthlyBreakdown);
 }
 
 // ========================================
