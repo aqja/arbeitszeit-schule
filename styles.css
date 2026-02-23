@@ -505,6 +505,12 @@ section h4 {
 /* ========================================
    Details und Kalender
    ======================================== */
+.calendar-hint {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+
 .legend {
     display: flex;
     flex-wrap: wrap;

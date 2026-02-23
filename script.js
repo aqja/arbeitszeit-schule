@@ -16,7 +16,7 @@ const API_CONFIG = {
     maxVacationYear: 2028
 };
 
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 Stunden in Millisekunden
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 Tage á 24 Stunden in Millisekunden
 
 /**
  * Logging-Konfiguration
