@@ -424,6 +424,30 @@ function getDefaultFlexDates(schoolYear) {
 }
 
 /**
+ * Gibt den letzten Schultag des Schuljahres zurück (letzter Werktag, der kein Feiertag
+ * und keine Ferienperiode ist), rückwärts ab 31. Juli des Endjahres.
+ * Setzt voraus, dass cachedApiData gesetzt ist.
+ * @param {string} schoolYear - z.B. "2024-2025"
+ * @returns {string} - Datum als YYYY-MM-DD String
+ */
+function getLastSchoolDay(schoolYear) {
+    const [, endYear] = schoolYear.split('-').map(Number);
+    const vacations = processVacations(cachedApiData.vacations);
+    const holidayStrings = new Set(cachedApiData.holidays.map(h => formatDateToString(h.date)));
+
+    const candidate = new Date(endYear, 6, 31, 12, 0, 0, 0); // 31. Juli, Mittag
+    while (candidate.getFullYear() >= endYear - 1) {
+        if (isWeekday(candidate) && !holidayStrings.has(formatDateToString(candidate))) {
+            const inVacation = vacations.some(v => candidate >= v.start && candidate <= v.end);
+            if (!inVacation) return formatDateToString(candidate);
+        }
+        candidate.setDate(candidate.getDate() - 1);
+    }
+    // Sollte nie erreicht werden
+    return formatDateToString(new Date(endYear, 6, 31));
+}
+
+/**
  * Aktualisiert die Eingabefelder für flexible Ferientage
  */
 function updateFlexDatesInputs() {
@@ -454,13 +478,8 @@ function updateFlexDatesInputs() {
             input.value = defaults[i - 1];
         } else {
             // Fallback für Felder jenseits der 4 Standard-Defaults:
-            // erster Werktag im August des Startjahres
-            const [startYear] = schoolYear.split('-').map(Number);
-            const fallback = new Date(startYear, 7, 1); // 1. August
-            while (!isWeekday(fallback)) {
-                fallback.setDate(fallback.getDate() + 1);
-            }
-            input.value = formatDateToString(fallback);
+            // letzter Schultag des Schuljahres (wenn Daten geladen), sonst leer
+            input.value = cachedApiData ? getLastSchoolDay(schoolYear) : '';
         }
 
         input.addEventListener('change', () => { saveFormState(); handleLoadData(); });
@@ -1090,12 +1109,24 @@ async function handleLoadData() {
     if (!isReadyToLoad()) return;
     try {
         const schoolYear = elements.schoolYear.value;
-        const flexDates = getFlexDates();
 
         showLoading(true);
         await loadApiDataForYear(schoolYear);
         updateDataWarning();
 
+        // Felder jenseits der 4 Standard-Defaults: leere Felder jetzt mit
+        // letztem Schultag befüllen, da API-Daten nun verfügbar sind
+        const defaults = getDefaultFlexDates(schoolYear);
+        const flexCount = parseInt(elements.flexDaysCount.value) || 0;
+        if (flexCount > defaults.length) {
+            const fallback = getLastSchoolDay(schoolYear);
+            for (let i = defaults.length + 1; i <= flexCount; i++) {
+                const inp = document.getElementById(`flexDate${i}`);
+                if (inp && !inp.value) inp.value = fallback;
+            }
+        }
+
+        const flexDates = getFlexDates();
         const holidays = cachedApiData.holidays;
         const vacations = processVacations(cachedApiData.vacations);
 
