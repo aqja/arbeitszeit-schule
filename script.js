@@ -995,75 +995,87 @@ function updatePlannerCalculations() {
 // ========================================
 
 /**
+ * Liest die ausgewählten flexiblen Ferientage aus dem Formular
+ * @returns {string[]} Array von Datumsstrings (YYYY-MM-DD)
+ */
+function getFlexDates() {
+    const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
+    const flexDates = [];
+    for (let i = 1; i <= flexDaysCount; i++) {
+        const input = document.getElementById(`flexDate${i}`);
+        if (input && input.value) {
+            flexDates.push(input.value);
+        }
+    }
+    return flexDates;
+}
+
+/**
+ * Lädt API-Daten für das Schuljahr und stellt gespeicherte Urlaubstage wieder her.
+ * Aktualisiert cachedApiData, currentSchoolYear und selectedVacationDays.
+ * @param {string} schoolYear
+ */
+async function loadApiDataForYear(schoolYear) {
+    if (cachedApiData && currentSchoolYear === schoolYear) return;
+
+    cachedApiData = await fetchAllData(schoolYear);
+    currentSchoolYear = schoolYear;
+    selectedVacationDays = new Set();
+
+    try {
+        const savedVac = storage.getItem('arbeitszeit_vacationDays');
+        if (savedVac) {
+            const { schoolYear: sy, days } = JSON.parse(savedVac);
+            if (sy === schoolYear && Array.isArray(days)) {
+                selectedVacationDays = new Set(days);
+            }
+        }
+    } catch (e) {
+        logScript.warn('loadApiDataForYear: Fehler beim Lesen der gespeicherten Urlaubstage', e);
+    }
+
+    updateVacationCounter();
+}
+
+/**
+ * Zeigt API-Warnungen (fehlende Feriendaten) im Warnbanner an oder versteckt ihn.
+ */
+function updateDataWarning() {
+    const warningEl = document.getElementById('dataWarning');
+    if (cachedApiData.warnings && cachedApiData.warnings.length > 0) {
+        warningEl.textContent = `Achtung: Die Schulferien-API liefert keine Daten für: ${cachedApiData.warnings.join(', ')}. Die Berechnung ist daher unvollständig. Die fehlenden Daten könnten manuell über flexible Ferientage abgebildet werden.`;
+        warningEl.style.display = 'block';
+    } else {
+        warningEl.style.display = 'none';
+    }
+}
+
+/**
  * Lädt Daten und berechnet 100%-Basisdaten nach Button-Klick
  */
 async function handleLoadData() {
     try {
         const schoolYear = elements.schoolYear.value;
+        const flexDates = getFlexDates();
 
-        // Flexible Ferientage sammeln
-        const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
-        const flexDates = [];
-        for (let i = 1; i <= flexDaysCount; i++) {
-            const input = document.getElementById(`flexDate${i}`);
-            if (input && input.value) {
-                flexDates.push(input.value);
-            }
-        }
-
-        // Zeige Ladeanzeige
         showLoading(true);
-
-        // API-Daten laden (mit Caching); Urlaubstag-Auswahl bei Schuljahreswechsel zurücksetzen
-        if (!cachedApiData || currentSchoolYear !== schoolYear) {
-            cachedApiData = await fetchAllData(schoolYear);
-            currentSchoolYear = schoolYear;
-            selectedVacationDays = new Set();
-            // Gespeicherte Urlaubstage für dieses Schuljahr wiederherstellen
-            try {
-                const savedVac = storage.getItem('arbeitszeit_vacationDays');
-                if (savedVac) {
-                    const { schoolYear: sy, days } = JSON.parse(savedVac);
-                    if (sy === schoolYear && Array.isArray(days)) {
-                        selectedVacationDays = new Set(days);
-                    }
-                }
-            } catch (e) {
-                logScript.warn('handleLoadData: Fehler beim Lesen der gespeicherten Urlaubstage', e);
-            }
-            updateVacationCounter();
-        }
-
-        // Warnung bei fehlenden Feriendaten anzeigen
-        const warningEl = document.getElementById('dataWarning');
-        if (cachedApiData.warnings && cachedApiData.warnings.length > 0) {
-            warningEl.textContent = `Achtung: Die Schulferien-API liefert keine Daten für: ${cachedApiData.warnings.join(', ')}. Die Berechnung ist daher unvollständig. Die fehlenden Daten könnten manuell über flexible Ferientage abgebildet werden.`;
-            warningEl.style.display = 'block';
-        } else {
-            warningEl.style.display = 'none';
-        }
+        await loadApiDataForYear(schoolYear);
+        updateDataWarning();
 
         const holidays = cachedApiData.holidays;
         const vacations = processVacations(cachedApiData.vacations);
 
-        // Berechnung bei 100% durchführen
         const baseResults = calculateWorkingTime({
             schoolYear,
-            workPercentage: 100, // Immer 100% für Basisdaten
+            workPercentage: 100,
             vacations,
             holidays,
             flexDates
         });
 
-        // 100%-Basisdaten anzeigen
         displayBaseResults(baseResults);
-
-        // Basisdaten-Bereich einblenden
         elements.baseResults.style.display = 'block';
-
-        // Teilzeit automatisch berechnen
         handleCalculateParttime();
-
         showLoading(false);
 
     } catch (error) {
@@ -1108,14 +1120,7 @@ function handleCalculateParttime() {
     const holidays = cachedApiData.holidays;
     const vacations = processVacations(cachedApiData.vacations);
 
-    const flexDaysCount = parseInt(elements.flexDaysCount.value) || 0;
-    const flexDates = [];
-    for (let i = 1; i <= flexDaysCount; i++) {
-        const input = document.getElementById(`flexDate${i}`);
-        if (input && input.value) {
-            flexDates.push(input.value);
-        }
-    }
+    const flexDates = getFlexDates();
 
     calculateAndDisplayParttime(holidays, vacations, flexDates, schoolYear, percentage, selectedVacationDays);
 }
