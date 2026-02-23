@@ -119,7 +119,6 @@ function initializeElements() {
         workPercentage: document.getElementById('workPercentage'),
         flexDaysCount: document.getElementById('flexDaysCount'),
         flexDatesContainer: document.getElementById('flexDatesContainer'),
-        loadDataBtn: document.getElementById('loadDataBtn'),
 
         // Anzeige-Elemente
         loadingIndicator: document.getElementById('loadingIndicator'),
@@ -347,24 +346,27 @@ function setupEventListeners() {
         elements[`${day}Break`].addEventListener('input', () => { updatePlannerCalculations(); saveFormState(); });
     });
 
-    // Button-triggered data loading
-    elements.loadDataBtn.addEventListener('click', handleLoadData);
+    // Flex days count change - update inputs + save + ggf. neu berechnen
+    elements.flexDaysCount.addEventListener('change', () => { updateFlexDatesInputs(); saveFormState(); handleLoadData(); });
 
-    // Flex days count change - update inputs only + save
-    elements.flexDaysCount.addEventListener('change', () => { updateFlexDatesInputs(); saveFormState(); });
-
-    // Schuljahr-Wechsel - Flex-Daten neu berechnen + save
-    elements.schoolYear.addEventListener('change', () => { updateFlexDatesInputs(); saveFormState(); });
+    // Schuljahr-Wechsel - Flex-Daten neu berechnen + In-Memory-Cache leeren + neu laden
+    elements.schoolYear.addEventListener('change', () => {
+        cachedApiData = null;
+        currentSchoolYear = null;
+        updateFlexDatesInputs();
+        saveFormState();
+        handleLoadData();
+    });
 
     // Bidirektionale Synchronisierung: Stunden ↔ Prozent + automatische Neuberechnung + save
     elements.weeklyHoursInput.addEventListener('input', () => { syncHoursToPercentage(); saveFormState(); });
     elements.workPercentage.addEventListener('input', () => { syncPercentageToHours(); saveFormState(); });
 
-    // Enter-Taste zum Laden
-    document.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleLoadData();
-        }
+    // Manueller Refresh-Button (leert Cache, ruft API erneut ab)
+    document.getElementById('refreshDataBtn').addEventListener('click', () => {
+        cachedApiData = null;
+        currentSchoolYear = null;
+        handleLoadData();
     });
 
     // Impressum Modal
@@ -452,7 +454,7 @@ function updateFlexDatesInputs() {
             input.value = defaults[i - 1];
         }
 
-        input.addEventListener('change', saveFormState);
+        input.addEventListener('change', () => { saveFormState(); handleLoadData(); });
         inputGroup.appendChild(label);
         inputGroup.appendChild(input);
         elements.flexDatesContainer.appendChild(inputGroup);
@@ -681,6 +683,21 @@ async function fetchAllData(schoolYear) {
  */
 function showLoading(show) {
     elements.loadingIndicator.style.display = show ? 'block' : 'none';
+    document.getElementById('refreshDataBtn')?.classList.toggle('loading', show);
+}
+
+/**
+ * Prüft, ob alle Pflichtangaben vorhanden sind, um Daten laden zu können.
+ * @returns {boolean}
+ */
+function isReadyToLoad() {
+    if (!elements.schoolYear.value) return false;
+    const count = parseInt(elements.flexDaysCount.value) || 0;
+    for (let i = 1; i <= count; i++) {
+        const inp = document.getElementById(`flexDate${i}`);
+        if (!inp || !inp.value) return false;
+    }
+    return true;
 }
 
 /**
@@ -1062,9 +1079,11 @@ function updateDataWarning() {
 }
 
 /**
- * Lädt Daten und berechnet 100%-Basisdaten nach Button-Klick
+ * Lädt Daten und berechnet 100%-Basisdaten. Wird automatisch ausgelöst
+ * sobald alle Pflichtangaben vollständig sind.
  */
 async function handleLoadData() {
+    if (!isReadyToLoad()) return;
     try {
         const schoolYear = elements.schoolYear.value;
         const flexDates = getFlexDates();
