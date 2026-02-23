@@ -26,16 +26,7 @@ const WORK_TIME_CONFIG = {
  * Setze DEBUG auf false für Produktionsumgebung
  */
 const DEBUG = false;
-
-/**
- * Strukturiertes Logging-System
- */
-const log = {
-    debug: (...args) => DEBUG && console.log('[DEBUG]', ...args),
-    info: (...args) => console.log('[INFO]', ...args),
-    warn: (...args) => console.warn('[WARN]', ...args),
-    error: (...args) => console.error('[ERROR]', ...args)
-};
+const log = createLogger(DEBUG);
 
 // Alle Hilfsfunktionen für Datumsverarbeitung befinden sich jetzt in utils.js
 

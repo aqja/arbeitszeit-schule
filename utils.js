@@ -155,6 +155,24 @@ function formatHours(value, format) {
 }
 
 // ========================================
+// Logging
+// ========================================
+
+/**
+ * Erstellt ein strukturiertes Logger-Objekt.
+ * @param {boolean} debugEnabled - true aktiviert [DEBUG]-Ausgaben
+ * @returns {{ debug: Function, info: Function, warn: Function, error: Function }}
+ */
+function createLogger(debugEnabled) {
+    return {
+        debug: (...args) => debugEnabled && console.log('[DEBUG]', ...args),
+        info:  (...args) => console.log('[INFO]', ...args),
+        warn:  (...args) => console.warn('[WARN]', ...args),
+        error: (...args) => console.error('[ERROR]', ...args)
+    };
+}
+
+// ========================================
 // Export (für Browser-Verwendung)
 // ========================================
 
@@ -169,6 +187,7 @@ if (typeof module !== 'undefined' && module.exports) {
         isDateInRange,
         getDateRange,
         getEasterDate,
-        formatHours
+        formatHours,
+        createLogger
     };
 }

@@ -77,15 +77,7 @@ let hourFormat = storage.getItem('arbeitszeit_hourFormat') || 'decimal';
  */
 let isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-/**
- * Strukturiertes Logging-System
- */
-const logScript = {
-    debug: (...args) => DEBUG_SCRIPT && console.log('[DEBUG]', ...args),
-    info: (...args) => console.log('[INFO]', ...args),
-    warn: (...args) => console.warn('[WARN]', ...args),
-    error: (...args) => console.error('[ERROR]', ...args)
-};
+const logScript = createLogger(DEBUG_SCRIPT);
 
 // ========================================
 // DOM-Elemente
@@ -692,6 +684,16 @@ function showLoading(show) {
 }
 
 /**
+ * Zeigt eine Fehlermeldung im Warnbanner an
+ * @param {string} message - Anzuzeigende Fehlermeldung
+ */
+function showError(message) {
+    const warningEl = document.getElementById('dataWarning');
+    warningEl.textContent = message;
+    warningEl.style.display = 'block';
+}
+
+/**
  * Aktualisiert den Urlaubstage-Zähler in der Legende
  */
 function updateVacationCounter() {
@@ -738,7 +740,9 @@ function displayCalendar(dayClassification) {
         return orderA - orderB;
     });
 
-    // Erstelle Monatsansichten
+    // Erstelle Monatsansichten in einem Fragment, um Reflows zu minimieren
+    const fragment = document.createDocumentFragment();
+
     sortedMonths.forEach(monthGroup => {
         const monthColumn = document.createElement('div');
         monthColumn.className = 'month-column';
@@ -796,8 +800,10 @@ function displayCalendar(dayClassification) {
             monthColumn.appendChild(dayIndicator);
         });
 
-        elements.calendarView.appendChild(monthColumn);
+        fragment.appendChild(monthColumn);
     });
+
+    elements.calendarView.appendChild(fragment);
 }
 
 /**
@@ -1062,7 +1068,7 @@ async function handleLoadData() {
 
     } catch (error) {
         logScript.error('Data loading error:', error);
-        alert(`Fehler beim Laden der Daten: ${error.message}`);
+        showError(`Fehler beim Laden der Daten: ${error.message}`);
         showLoading(false);
     }
 }
