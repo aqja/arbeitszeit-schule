@@ -162,7 +162,7 @@ section h2 {
     to   { transform: rotate(360deg); }
 }
 
-#refreshDataBtn.loading {
+#refreshDataBtn {
     overflow: hidden;
 }
 
