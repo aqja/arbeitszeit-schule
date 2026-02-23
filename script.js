@@ -452,6 +452,15 @@ function updateFlexDatesInputs() {
 
         if (i <= defaults.length) {
             input.value = defaults[i - 1];
+        } else {
+            // Fallback für Felder jenseits der 4 Standard-Defaults:
+            // erster Werktag im August des Startjahres
+            const [startYear] = schoolYear.split('-').map(Number);
+            const fallback = new Date(startYear, 7, 1); // 1. August
+            while (!isWeekday(fallback)) {
+                fallback.setDate(fallback.getDate() + 1);
+            }
+            input.value = formatDateToString(fallback);
         }
 
         input.addEventListener('change', () => { saveFormState(); handleLoadData(); });
@@ -687,17 +696,12 @@ function showLoading(show) {
 }
 
 /**
- * Prüft, ob alle Pflichtangaben vorhanden sind, um Daten laden zu können.
+ * Prüft, ob die Mindestangabe (Schuljahr) vorhanden ist, um Daten laden zu können.
+ * Flex-Daten müssen nicht vollständig sein – getFlexDates() filtert leere Felder heraus.
  * @returns {boolean}
  */
 function isReadyToLoad() {
-    if (!elements.schoolYear.value) return false;
-    const count = parseInt(elements.flexDaysCount.value) || 0;
-    for (let i = 1; i <= count; i++) {
-        const inp = document.getElementById(`flexDate${i}`);
-        if (!inp || !inp.value) return false;
-    }
-    return true;
+    return !!elements.schoolYear.value;
 }
 
 /**
