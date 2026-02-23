@@ -780,7 +780,10 @@ function displayCalendar(dayClassification) {
             dayIndicator.title = `${formatDateToString(day.date)}: ${day.name}`;
 
             if (isClickable) {
-                dayIndicator.addEventListener('click', () => {
+                dayIndicator.setAttribute('role', 'button');
+                dayIndicator.setAttribute('tabindex', '0');
+
+                const toggleVacation = () => {
                     if (selectedVacationDays.has(day.dateString)) {
                         selectedVacationDays.delete(day.dateString);
                         dayIndicator.classList.remove('urlaub');
@@ -794,6 +797,14 @@ function displayCalendar(dayClassification) {
                         schoolYear: currentSchoolYear,
                         days: Array.from(selectedVacationDays)
                     }));
+                };
+
+                dayIndicator.addEventListener('click', toggleVacation);
+                dayIndicator.addEventListener('keydown', e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleVacation();
+                    }
                 });
             }
 

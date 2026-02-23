@@ -652,6 +652,11 @@ section h4 {
     box-shadow: -2px 0 0 0 var(--bg-primary), -8px 0 0 0 #0057bb;
 }
 
+.day-indicator.clickable-vacation:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
+}
+
 /* Ausgewählter Urlaubstag */
 .day-indicator.urlaub {
     box-shadow: -2px 0 0 0 var(--bg-primary), -8px 0 0 0 #0057bb;
