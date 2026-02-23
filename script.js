@@ -648,10 +648,17 @@ async function fetchAllData(schoolYear) {
 
         // Feiertage MÜSSEN als Arrays kombiniert werden, da Objekt-Merge gleiche Namen überschreibt
         // (z.B. "Tag der Deutschen Einheit" existiert in beiden Jahren)
+        // Anschließend nach Datum deduplizieren, da processHolidays() Heiligabend/Silvester
+        // selbst anfügt und diese bei Schuljahresgrenzen sonst doppelt auftreten könnten.
         const processedHolidaysStart = processHolidays(holidaysStart);
         const processedHolidaysEnd = processHolidays(holidaysEnd);
-        const allHolidays = [...processedHolidaysStart, ...processedHolidaysEnd];
-        logScript.debug('Kombinierte Feiertage (Array):', allHolidays);
+        const allHolidays = Array.from(
+            new Map(
+                [...processedHolidaysStart, ...processedHolidaysEnd]
+                    .map(h => [formatDateToString(h.date), h])
+            ).values()
+        );
+        logScript.debug('Kombinierte Feiertage (Array, dedupliziert):', allHolidays);
         logScript.debug('Anzahl Feiertage:', allHolidays.length);
 
         // Ferien kombinieren

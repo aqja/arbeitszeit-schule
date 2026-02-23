@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Arbeitszeitrechner für Schulen in Hessen</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="utils.js"></script>
+    <script src="calculator.js"></script>
+    <script src="script.js"></script>
 </head>
 <body>
     <div class="controls-bar">
@@ -116,7 +119,7 @@
 
                     <!-- Kalenderansicht Schuljahr -->
                     <div class="calendar-section">
-                        <h4>Kalenderübersicht des Schuljahres</h3>
+                        <h4>Kalenderübersicht des Schuljahres</h4>
                         <div class="legend">
                             <span class="legend-item"><span class="color-box school-day"></span> Schultag</span>
                             <span class="legend-item"><span class="color-box vacation-day"></span> Schulferien</span>
@@ -287,7 +290,7 @@
 
                 <!-- Stunden-Berechnung Stage -->
                 <div class="calculation-stage">
-                    <h3>Stundenberechnung</h4>
+                    <h3>Stundenberechnung</h3>
                     <div class="flow-container">
                         <div class="result-card compact highlight-blue">
                             <h5>Schulfreie Tage</h5>
@@ -317,7 +320,7 @@
 
                 <!-- Endergebnis Stage -->
                 <div class="calculation-stage">
-                    <h3>Ihre Endergebnisse</h4>
+                    <h3>Ihre Endergebnisse</h3>
                     <div class="flow-container">
                         <div class="result-card emphasis highlight">
                             <h5>Theoretische Arbeitszeit Täglich</h5>
@@ -472,9 +475,5 @@
             </section>
         </div>
     </div>
-
-    <script src="utils.js"></script>
-    <script src="calculator.js"></script>
-    <script src="script.js"></script>
 </body>
 </html>
