@@ -722,7 +722,7 @@ async function fetchAllData(schoolYear) {
  */
 function showLoading(show) {
     elements.loadingIndicator.style.display = show ? 'block' : 'none';
-    document.getElementById('refreshDataBtn')?.classList.toggle('loading', show);
+    document.getElementById('refreshDataBtn')?.classList.toggle('spinning', show);
 }
 
 /**
