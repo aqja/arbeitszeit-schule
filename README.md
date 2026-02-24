@@ -2,7 +2,7 @@
 
 Ein schlankes Webtool zur Berechnung der monatlichen und jährlichen Arbeitszeit für Mitarbeitende an Schulen in Hessen – inklusive Teilzeitmodellen, Schulferien, Feiertagen und individuellem Urlaubsplan.
 
-→ **[arbeitszeit.aqja.de](https://umfluten.de/arbeitszeit)** (oder direkt `index.html` lokal öffnen)
+→ **[https://umfluten.de/arbeitszeit/index.html](https://umfluten.de/arbeitszeit/index.html)** (oder direkt `index.html` lokal öffnen)
 
 ## Features
 
