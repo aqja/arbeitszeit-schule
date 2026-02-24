@@ -163,9 +163,7 @@ section h2 {
 }
 
 #refreshDataBtn {
-    overflow: hidden;
-    width: 34px;
-    padding: 0;
+    contain: paint;
 }
 
 #refreshDataBtn.loading svg {
