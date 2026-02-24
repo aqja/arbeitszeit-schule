@@ -96,6 +96,7 @@ header {
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
     backdrop-filter: blur(6px);
+    overflow: hidden;
 }
 
 .btn-icon {
@@ -163,12 +164,10 @@ section h2 {
     to   { transform: rotate(360deg); }
 }
 
-#refreshDataBtn {
-    overflow: hidden;
-}
-
 #refreshDataBtn.loading svg {
     animation: spin 0.8s linear infinite;
+    transform-box: fill-box;
+    transform-origin: center;
 }
 
 section h3 {
