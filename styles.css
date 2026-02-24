@@ -164,6 +164,8 @@ section h2 {
 
 #refreshDataBtn {
     overflow: hidden;
+    width: 34px;
+    padding: 0;
 }
 
 #refreshDataBtn.loading svg {
